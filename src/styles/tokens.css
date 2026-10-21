@@ -1,0 +1,54 @@
+:root {
+  color-scheme: dark;
+
+  /* Surfaces */
+  --bg: #07080d;
+  --bg-elev: #0d0f17;
+  --bg-elev-2: #131622;
+  --surface: rgba(255, 255, 255, 0.035);
+  --surface-2: rgba(255, 255, 255, 0.06);
+  --surface-3: rgba(255, 255, 255, 0.1);
+  --border: rgba(255, 255, 255, 0.07);
+  --border-strong: rgba(255, 255, 255, 0.14);
+
+  /* Texte */
+  --text: #f3f4f8;
+  --text-2: #a7abbb;
+  --text-3: #6c7083;
+
+  /* Accents */
+  --accent: hsl(258 90% 72%);
+  --accent-2: hsl(196 95% 62%);
+  --accent-grad: linear-gradient(135deg, hsl(262 88% 66%) 0%, hsl(222 92% 64%) 50%, hsl(192 95% 58%) 100%);
+  --accent-glow: 0 8px 32px -8px hsl(250 90% 60% / 0.55);
+  --success: hsl(152 64% 55%);
+  --warning: hsl(40 95% 60%);
+  --danger: hsl(355 85% 65%);
+
+  /* Rayons & ombres */
+  --r-xs: 8px;
+  --r-sm: 12px;
+  --r: 18px;
+  --r-lg: 26px;
+  --r-full: 999px;
+  --shadow: 0 16px 40px -16px rgba(0, 0, 0, 0.7);
+  --shadow-lg: 0 30px 80px -20px rgba(0, 0, 0, 0.85);
+
+  /* Typo */
+  --font-sans: 'Inter Variable', -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  --font-display: 'Outfit Variable', 'Inter Variable', -apple-system, system-ui, sans-serif;
+
+  /* Layout */
+  --safe-top: env(safe-area-inset-top, 0px);
+  --safe-bottom: env(safe-area-inset-bottom, 0px);
+  --safe-left: env(safe-area-inset-left, 0px);
+  --safe-right: env(safe-area-inset-right, 0px);
+  --nav-h: 66px;
+  --sidebar-w: 248px;
+  --content-max: 980px;
+
+  /* Animation */
+  --ease: cubic-bezier(0.2, 0.8, 0.2, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --dur: 220ms;
+}

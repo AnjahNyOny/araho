@@ -1,9 +1,9 @@
 import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, ChevronRight, ListChecks, Flame } from 'lucide-react'
+import { Plus, ChevronRight, ListChecks } from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
 import { useSessions, useTasks } from '../../db/hooks'
-import { computeStreak, minutesByDate } from '../../db/stats'
+import { minutesByDate } from '../../db/stats'
 import type { Session, Task } from '../../db/types'
 import { formatDuration, today } from '../../lib/date'
 import { TaskFormSheet } from './TaskFormSheet'
@@ -71,7 +71,6 @@ function TaskRow({ task, sessions }: { task: Task; sessions: Session[] }) {
   const t = today()
   const byDate = minutesByDate(sessions)
   const todayMin = byDate.get(t) ?? 0
-  const streak = computeStreak(new Set(byDate.keys()), t)
 
   return (
     <Link
@@ -88,11 +87,6 @@ function TaskRow({ task, sessions }: { task: Task; sessions: Session[] }) {
             : task.description || 'Sans objectif quotidien'}
         </div>
       </div>
-      {streak > 0 && (
-        <span className="streak tiny tabular">
-          <Flame size={13} /> {streak}
-        </span>
-      )}
       <ChevronRight size={18} className="cell-chevron" />
     </Link>
   )

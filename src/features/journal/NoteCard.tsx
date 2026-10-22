@@ -24,12 +24,14 @@ export function NoteCard({ note, session, showTask = false }: NoteCardProps) {
               {task.name}
             </Link>
           )}
-          <div className="tiny muted">
-            {relativeDayLabel(note.date)}
-            {session && <span className="tabular"> · {formatDuration(session.durationMin)}</span>}
+          <div className="tiny muted row" style={{ gap: 6 }}>
+            <span>
+              {relativeDayLabel(note.date)}
+              {session && <span className="tabular"> · {formatDuration(session.durationMin)}</span>}
+            </span>
+            {note.confidence > 0 && <ConfidenceDots value={note.confidence} />}
           </div>
         </div>
-        {note.confidence > 0 && <ConfidenceDots value={note.confidence} />}
         <Link
           to={`/note/${note.sessionId}`}
           className="icon-btn"

@@ -54,8 +54,8 @@
 .day-progress {
   display: flex;
   flex-direction: column;
-  gap: 8px;
-  margin: 0 4px 22px;
+  gap: var(--s-1);
+  margin: 0 4px var(--s-3);
 }
 
 .now-marker {

@@ -44,6 +44,19 @@
   /* Typo */
   --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Helvetica Neue', Arial, sans-serif;
 
+  /* Échelle typographique (5 niveaux, voir DESIGN.md) */
+  --fs-large-title: 34px;
+  --fs-title: 22px;
+  --fs-body: 17px;
+  --fs-secondary: 15px;
+  --fs-note: 13px;
+
+  /* Espacement (grille de 8) */
+  --s-1: 8px;
+  --s-2: 16px;
+  --s-3: 24px;
+  --s-4: 32px;
+
   /* Layout */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);

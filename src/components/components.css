@@ -144,15 +144,16 @@
   display: flex;
   align-items: flex-end;
   gap: 12px;
-  margin-bottom: 20px;
+  margin-bottom: var(--s-2);
   padding: 0 4px;
 }
 
 .page-title {
-  font-size: 34px;
+  font-size: var(--fs-large-title);
   font-weight: 700;
   letter-spacing: 0.01em;
   line-height: 1.12;
+  margin-top: 2px;
 }
 
 .page-actions {
@@ -160,6 +161,42 @@
   align-items: center;
   gap: 2px;
   padding-bottom: 2px;
+}
+
+/* Navigation de date : légende discrète, pas de boutons concurrents du titre */
+.date-nav {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: -6px;
+}
+
+.date-nav-btn {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  color: var(--label-2);
+  border-radius: 50%;
+}
+
+.date-nav-btn:active {
+  opacity: 0.4;
+}
+
+.date-nav-link {
+  margin-left: 10px;
+  font-size: var(--fs-note);
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--accent);
+}
+
+.tab:focus-visible,
+.side-link:focus-visible,
+.date-nav-btn:focus-visible {
+  outline-offset: -3px;
+  border-radius: 10px;
 }
 
 /* ===================== Icône de tâche ===================== */

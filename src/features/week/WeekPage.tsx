@@ -1,5 +1,5 @@
 import { useMemo, useState, type CSSProperties } from 'react'
-import { ChevronLeft, ChevronRight, Plus, Repeat, Check } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Check } from 'lucide-react'
 import { PageHeader, TaskIcon } from '../../components/ui'
 import { usePlan, useSessions, useTaskMap } from '../../db/hooks'
 import type { PlanItem } from '../../db/types'
@@ -122,11 +122,9 @@ export function WeekPage() {
                       <div className="cell-title truncate" style={done || skipped ? { color: 'var(--label-2)' } : undefined}>
                         {task.name}
                       </div>
-                      <div className="cell-sub row tabular" style={{ '--gap': '5px' } as CSSProperties}>
-                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
-                        <span>· {formatDuration(item.durationMin)}</span>
-                        {item.recurrence && <Repeat size={12} />}
-                        {skipped && <span>· Sauté</span>}
+                      <div className="cell-sub tabular">
+                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)} · {formatDuration(item.durationMin)}
+                        {skipped ? ' · Sauté' : ''}
                       </div>
                     </div>
                     {done && (

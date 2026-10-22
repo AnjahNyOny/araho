@@ -1,6 +1,7 @@
 import { useEffect, useState, type CSSProperties } from 'react'
+import { Check } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
-import { DaysPicker, DurationPicker, TaskIcon } from '../../components/ui'
+import { DaysPicker, DurationPicker, Section, TaskIcon } from '../../components/ui'
 import { useTasks } from '../../db/hooks'
 import { addSlot } from '../../db/repo'
 import { dayOfWeek, minutesToTime, nowMinutes, timeToMinutes, today, type ISODate } from '../../lib/date'
@@ -100,63 +101,56 @@ export function AddSlotSheet({ open, onClose, date, taskId, onNeedTask }: Props)
           </button>
         </div>
       ) : (
-        <div className="stack" style={{ '--gap': '22px' } as CSSProperties}>
-          <div className="field">
-            <span className="field-label">Tâche</span>
-            <div className="task-picker">
-              {tasks?.map((t) => (
-                <button
-                  key={t.id}
-                  type="button"
-                  className="task-pick"
-                  id={`add-slot-task-${t.id}`}
-                  aria-pressed={selected === t.id}
-                  style={{ '--c': t.color } as CSSProperties}
-                  onClick={() => setSelected(t.id)}
-                >
-                  <TaskIcon task={t} size={30} />
-                  <span className="truncate">{t.name}</span>
-                </button>
-              ))}
-            </div>
-          </div>
+        <>
+          <Section title="Tâche">
+            {tasks?.map((t) => (
+              <button
+                key={t.id}
+                type="button"
+                className="cell has-icon"
+                id={`add-slot-task-${t.id}`}
+                aria-pressed={selected === t.id}
+                onClick={() => setSelected(t.id)}
+              >
+                <TaskIcon task={t} size={30} />
+                <span className="cell-body truncate">{t.name}</span>
+                {selected === t.id && <Check size={20} color="var(--accent)" strokeWidth={2.4} />}
+              </button>
+            ))}
+          </Section>
 
-          <div className="row" style={{ '--gap': '12px', alignItems: 'flex-end' } as CSSProperties}>
-            <label className="field grow">
-              <span className="field-label">{repeat ? 'À partir du' : 'Jour'}</span>
+          <Section>
+            <label className="cell">
+              <span className="cell-body">{repeat ? 'À partir du' : 'Jour'}</span>
               <input
                 id="add-slot-date"
                 type="date"
-                className="input"
+                className="time-input"
                 value={day}
                 onChange={(e) => e.target.value && setDay(e.target.value)}
               />
             </label>
-            <label className="field" style={{ width: 130 }}>
-              <span className="field-label">Début</span>
+            <label className="cell">
+              <span className="cell-body">Début</span>
               <input
                 id="add-slot-time"
                 type="time"
-                className="input"
+                className="time-input"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
             </label>
-          </div>
+          </Section>
 
-          <div className="field">
-            <span className="field-label">Durée</span>
-            <DurationPicker value={duration} onChange={setDuration} idPrefix="add-slot-duration" />
-          </div>
+          <Section title="Durée">
+            <div className="pad">
+              <DurationPicker value={duration} onChange={setDuration} idPrefix="add-slot-duration" />
+            </div>
+          </Section>
 
-          <div className="stack" style={{ '--gap': '12px' } as CSSProperties}>
-            <label className="toggle-row" htmlFor="add-slot-repeat">
-              <span>
-                <span style={{ fontWeight: 600 }}>Répéter</span>
-                <span className="small muted" style={{ display: 'block' }}>
-                  Crée une série de créneaux réguliers
-                </span>
-              </span>
+          <Section footer={repeat ? undefined : 'Crée une série de créneaux réguliers.'}>
+            <label className="cell" htmlFor="add-slot-repeat">
+              <span className="cell-body">Répéter</span>
               <input
                 id="add-slot-repeat"
                 type="checkbox"
@@ -165,9 +159,13 @@ export function AddSlotSheet({ open, onClose, date, taskId, onNeedTask }: Props)
                 onChange={(e) => setRepeat(e.target.checked)}
               />
             </label>
-            {repeat && <DaysPicker value={days} onChange={setDays} idPrefix="add-slot-repeat" />}
-          </div>
-        </div>
+            {repeat && (
+              <div className="pad stack" style={{ '--gap': '12px' } as CSSProperties}>
+                <DaysPicker value={days} onChange={setDays} idPrefix="add-slot-repeat" />
+              </div>
+            )}
+          </Section>
+        </>
       )}
     </Sheet>
   )

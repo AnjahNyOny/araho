@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Play, Check, SkipForward, Trash2, Repeat, NotebookPen, Undo2, Clock } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
-import { DurationPicker, TaskIcon } from '../../components/ui'
+import { DurationPicker, Section, TaskIcon } from '../../components/ui'
 import { useActiveSession, useTaskMap } from '../../db/hooks'
 import * as repo from '../../db/repo'
 import type { PlanItem } from '../../db/types'
@@ -77,33 +77,27 @@ export function SlotSheet({ item, onClose }: Props) {
   const end = item.startMin + item.durationMin
 
   return (
-    <Sheet open onClose={onClose} id="slot-sheet" title="">
-      <div className="stack" style={{ '--gap': '20px', marginTop: -18 } as CSSProperties}>
-        <div className="row" style={{ '--gap': '14px' } as CSSProperties}>
-          <TaskIcon task={task} size={54} />
-          <div className="grow">
-            <h3 style={{ fontSize: 21 }}>{task.name}</h3>
-            <div className="small muted row" style={{ '--gap': '6px', flexWrap: 'wrap' } as CSSProperties}>
-              <span>{relativeDayLabel(item.date)}</span>·
-              <span className="tabular">
-                {minutesToTime(item.startMin)} – {minutesToTime(end)}
-              </span>
-              ·<span>{formatDuration(item.durationMin)}</span>
-            </div>
-            {item.recurrence && (
-              <div className="tiny faint row" style={{ '--gap': '5px', marginTop: 4 } as CSSProperties}>
-                <Repeat size={12} /> {describeDays(item.recurrence.daysOfWeek)}
-              </div>
-            )}
+    <Sheet open onClose={onClose} id="slot-sheet" title="Créneau">
+      <div className="section row" style={{ '--gap': '14px', padding: '4px 4px 0' } as CSSProperties}>
+        <TaskIcon task={task} size={56} />
+        <div className="grow">
+          <h3 style={{ fontSize: 22, fontWeight: 700 }}>{task.name}</h3>
+          <div className="small muted tabular">
+            {relativeDayLabel(item.date)} · {minutesToTime(item.startMin)} – {minutesToTime(end)} · {formatDuration(item.durationMin)}
           </div>
+          {item.recurrence && (
+            <div className="tiny muted row" style={{ '--gap': '5px', marginTop: 2 } as CSSProperties}>
+              <Repeat size={12} /> {describeDays(item.recurrence.daysOfWeek)}
+            </div>
+          )}
         </div>
+      </div>
 
-        {done && (
-          <div className="status-banner success">
-            <Check size={18} />
-            <span className="grow">
-              Fait{session ? ` · ${formatDuration(session.durationMin)}` : ''}
-            </span>
+      {done && (
+        <Section>
+          <div className="cell">
+            <Check size={20} color="var(--success)" strokeWidth={2.6} />
+            <span className="cell-body">Fait{session ? ` · ${formatDuration(session.durationMin)}` : ''}</span>
             {session && (
               <button
                 className="btn btn-sm btn-secondary"
@@ -113,143 +107,143 @@ export function SlotSheet({ item, onClose }: Props) {
                   navigate(`/note/${session.id}`)
                 }}
               >
-                <NotebookPen size={15} /> Note
+                <NotebookPen size={14} /> Note
               </button>
             )}
           </div>
-        )}
-        {skipped && (
-          <div className="status-banner">
-            <SkipForward size={18} />
-            <span className="grow">Créneau sauté</span>
+        </Section>
+      )}
+      {skipped && (
+        <Section>
+          <div className="cell">
+            <SkipForward size={20} className="muted" />
+            <span className="cell-body">Créneau sauté</span>
           </div>
-        )}
+        </Section>
+      )}
 
-        {editing ? (
-          <div className="stack card card-pad" style={{ '--gap': '16px' } as CSSProperties}>
-            <label className="field">
-              <span className="field-label">Début</span>
+      {editing ? (
+        <>
+          <Section>
+            <label className="cell">
+              <span className="cell-body">Début</span>
               <input
                 id="slot-edit-time"
                 type="time"
-                className="input"
-                style={{ maxWidth: 150 }}
+                className="time-input"
                 value={time}
                 onChange={(e) => setTime(e.target.value)}
               />
             </label>
-            <div className="field">
-              <span className="field-label">Durée</span>
+          </Section>
+          <Section title="Durée">
+            <div className="pad">
               <DurationPicker value={duration} onChange={setDuration} idPrefix="slot-edit-duration" />
             </div>
-            {item.recurrence && (
-              <div className="chips">
-                <button
-                  className="chip"
-                  id="slot-edit-scope-one"
-                  aria-pressed={scope === 'one'}
-                  onClick={() => setScope('one')}
-                >
-                  Ce créneau seulement
-                </button>
-                <button
-                  className="chip"
-                  id="slot-edit-scope-series"
-                  aria-pressed={scope === 'series'}
-                  onClick={() => setScope('series')}
-                >
-                  Toute la série
-                </button>
-              </div>
-            )}
-            <div className="row">
-              <button className="btn btn-secondary grow" onClick={() => setEditing(false)} id="slot-edit-cancel">
-                Annuler
+          </Section>
+          {item.recurrence && (
+            <div className="section chips">
+              <button className="chip" id="slot-edit-scope-one" aria-pressed={scope === 'one'} onClick={() => setScope('one')}>
+                Ce créneau seulement
               </button>
-              <button className="btn btn-primary grow" onClick={saveEdit} id="slot-edit-save">
-                Enregistrer
+              <button className="chip" id="slot-edit-scope-series" aria-pressed={scope === 'series'} onClick={() => setScope('series')}>
+                Toute la série
               </button>
             </div>
+          )}
+          <div className="row">
+            <button className="btn btn-secondary grow" onClick={() => setEditing(false)} id="slot-edit-cancel">
+              Annuler
+            </button>
+            <button className="btn btn-primary grow" onClick={saveEdit} id="slot-edit-save">
+              Enregistrer
+            </button>
           </div>
-        ) : (
-          <div className="stack" style={{ '--gap': '10px' } as CSSProperties}>
-            {!done && (
+        </>
+      ) : (
+        <>
+          {!done && (
+            <div className="section">
               <button className="btn btn-primary btn-lg btn-block" onClick={start} id="slot-start">
-                <Play size={18} fill="currentColor" />
+                <Play size={17} fill="currentColor" />
                 {isActiveHere ? 'Reprendre la session' : 'Démarrer la session'}
               </button>
+            </div>
+          )}
+
+          <Section>
+            {!done && !isActiveHere && (
+              <button className="cell is-accent" onClick={markDone} id="slot-mark-done">
+                <Check size={20} />
+                <span className="cell-body">Marquer comme fait</span>
+              </button>
             )}
-            <div className="action-grid">
-              {!done && !isActiveHere && (
-                <button className="action-tile" onClick={markDone} id="slot-mark-done">
-                  <Check size={20} />
-                  <span>Déjà fait</span>
-                </button>
-              )}
-              {!done && !skipped && !isActiveHere && (
+            {!done && !skipped && !isActiveHere && (
+              <button
+                className="cell is-accent"
+                id="slot-skip"
+                onClick={async () => {
+                  await repo.setSlotStatus(item, 'skipped')
+                  onClose()
+                }}
+              >
+                <SkipForward size={20} />
+                <span className="cell-body">Sauter</span>
+              </button>
+            )}
+            {skipped && (
+              <button
+                className="cell is-accent"
+                id="slot-unskip"
+                onClick={async () => {
+                  await repo.setSlotStatus(item, 'planned')
+                  onClose()
+                }}
+              >
+                <Undo2 size={20} />
+                <span className="cell-body">Rétablir</span>
+              </button>
+            )}
+            {!done && !isActiveHere && (
+              <button className="cell is-accent" onClick={() => setEditing(true)} id="slot-edit">
+                <Clock size={20} />
+                <span className="cell-body">Modifier l’horaire</span>
+              </button>
+            )}
+          </Section>
+
+          {!isActiveHere && (
+            <Section>
+              <button
+                className="cell is-danger"
+                id="slot-delete"
+                onClick={async () => {
+                  if (!confirm('Supprimer ce créneau ?')) return
+                  await repo.deleteOccurrence(item)
+                  onClose()
+                }}
+              >
+                <Trash2 size={20} />
+                <span className="cell-body">Supprimer ce créneau</span>
+              </button>
+              {item.recurrence && (
                 <button
-                  className="action-tile"
-                  id="slot-skip"
+                  className="cell is-danger"
+                  id="slot-delete-series"
                   onClick={async () => {
-                    await repo.setSlotStatus(item, 'skipped')
-                    onClose()
-                  }}
-                >
-                  <SkipForward size={20} />
-                  <span>Sauter</span>
-                </button>
-              )}
-              {skipped && (
-                <button
-                  className="action-tile"
-                  id="slot-unskip"
-                  onClick={async () => {
-                    await repo.setSlotStatus(item, 'planned')
-                    onClose()
-                  }}
-                >
-                  <Undo2 size={20} />
-                  <span>Rétablir</span>
-                </button>
-              )}
-              {!done && !isActiveHere && (
-                <button className="action-tile" onClick={() => setEditing(true)} id="slot-edit">
-                  <Clock size={20} />
-                  <span>Modifier</span>
-                </button>
-              )}
-              {!isActiveHere && (
-                <button
-                  className="action-tile danger"
-                  id="slot-delete"
-                  onClick={async () => {
-                    if (!confirm('Supprimer ce créneau ?')) return
-                    await repo.deleteOccurrence(item)
+                    if (!confirm('Supprimer toute la série ? L’historique est conservé.')) return
+                    await repo.deleteRecurrence(item.recurrence!.id)
                     onClose()
                   }}
                 >
                   <Trash2 size={20} />
-                  <span>Supprimer</span>
+                  <span className="cell-body">Supprimer toute la série</span>
                 </button>
               )}
-            </div>
-            {item.recurrence && !isActiveHere && (
-              <button
-                className="btn btn-ghost btn-sm"
-                style={{ alignSelf: 'center', color: 'var(--danger)' }}
-                id="slot-delete-series"
-                onClick={async () => {
-                  if (!confirm('Supprimer toute la série ? L’historique est conservé.')) return
-                  await repo.deleteRecurrence(item.recurrence!.id)
-                  onClose()
-                }}
-              >
-                Supprimer toute la série
-              </button>
-            )}
-          </div>
-        )}
-      </div>
+            </Section>
+          )}
+        </>
+      )}
     </Sheet>
   )
 }

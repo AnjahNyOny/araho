@@ -1,14 +1,13 @@
-import { useMemo, useState } from 'react'
-import { Link } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Calendar, Repeat } from 'lucide-react'
+import { useMemo, useState, type CSSProperties } from 'react'
+import { ChevronLeft, ChevronRight, Plus, Repeat, Check } from 'lucide-react'
 import { PageHeader, TaskIcon } from '../../components/ui'
 import { usePlan, useSessions, useTaskMap } from '../../db/hooks'
 import type { PlanItem } from '../../db/types'
 import {
   addDays,
+  formatDayLong,
   formatDayMonth,
   formatDuration,
-  formatWeekday,
   minutesToTime,
   startOfWeek,
   today,
@@ -23,33 +22,22 @@ export function WeekPage() {
   const [addingDate, setAddingDate] = useState<ISODate | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<PlanItem | null>(null)
 
-  const currentWeekStart = useMemo(() => startOfWeek(currentDate), [currentDate])
-  const days = useMemo(() => weekDates(currentWeekStart), [currentWeekStart])
+  const weekStart = useMemo(() => startOfWeek(currentDate), [currentDate])
+  const days = useMemo(() => weekDates(weekStart), [weekStart])
 
   const plan = usePlan(days)
   const tasks = useTaskMap()
   const sessions = useSessions({ dates: days })
 
-  const weekStats = useMemo(() => {
+  const stats = useMemo(() => {
     let plannedMin = 0
-    let plannedSlots = 0
-    let completedSlots = 0
-
     if (plan) {
       for (const d of days) {
-        const dayItems = plan[d] || []
-        for (const it of dayItems) {
-          if (it.status !== 'skipped') {
-            plannedMin += it.durationMin
-            plannedSlots++
-            if (it.status === 'done') completedSlots++
-          }
-        }
+        for (const it of plan[d] ?? []) if (it.status !== 'skipped') plannedMin += it.durationMin
       }
     }
-
     const doneMin = (sessions ?? []).reduce((acc, s) => acc + s.durationMin, 0)
-    return { plannedMin, doneMin, plannedSlots, completedSlots }
+    return { plannedMin, doneMin }
   }, [plan, days, sessions])
 
   const isCurrentWeek = days.includes(today())
@@ -57,176 +45,105 @@ export function WeekPage() {
   return (
     <>
       <PageHeader
-        eyebrow="Vue hebdomadaire"
-        title={
-          <span>
-            Semaine du {formatDayMonth(days[0])} au {formatDayMonth(days[6])}
-          </span>
-        }
+        eyebrow={`${formatDayMonth(days[0])} – ${formatDayMonth(days[6])}`}
+        title="Semaine"
         actions={
           <>
-            <button
-              className="icon-btn"
-              onClick={() => setCurrentDate(addDays(currentWeekStart, -7))}
-              aria-label="Semaine précédente"
-              id="week-prev"
-            >
-              <ChevronLeft size={20} />
+            <button className="icon-btn" onClick={() => setCurrentDate(addDays(weekStart, -7))} aria-label="Semaine précédente" id="week-prev">
+              <ChevronLeft size={24} />
             </button>
             {!isCurrentWeek && (
-              <button
-                className="btn btn-sm btn-secondary"
-                onClick={() => setCurrentDate(today())}
-                id="week-reset"
-              >
-                Aujourd’hui
+              <button className="btn btn-sm btn-secondary" onClick={() => setCurrentDate(today())} id="week-reset">
+                Cette semaine
               </button>
             )}
-            <button
-              className="icon-btn"
-              onClick={() => setCurrentDate(addDays(currentWeekStart, 7))}
-              aria-label="Semaine suivante"
-              id="week-next"
-            >
-              <ChevronRight size={20} />
+            <button className="icon-btn" onClick={() => setCurrentDate(addDays(weekStart, 7))} aria-label="Semaine suivante" id="week-next">
+              <ChevronRight size={24} />
             </button>
           </>
         }
       />
 
-      <section className="card card-pad week-summary animate-in" style={{ marginBottom: 20 }}>
-        <div className="row spread" style={{ flexWrap: 'wrap', gap: 16 }}>
-          <div className="row" style={{ gap: 24, flexWrap: 'wrap' }}>
-            <div>
-              <div className="eyebrow">Réalisé</div>
-              <div className="display tabular gradient-text" style={{ fontSize: 24, fontWeight: 700 }}>
-                {formatDuration(weekStats.doneMin)}
-              </div>
-            </div>
-            <div>
-              <div className="eyebrow">Planifié</div>
-              <div className="display tabular" style={{ fontSize: 24, fontWeight: 600 }}>
-                {formatDuration(weekStats.plannedMin)}
-              </div>
-            </div>
-            <div>
-              <div className="eyebrow">Créneaux réalisés</div>
-              <div className="display tabular" style={{ fontSize: 24, fontWeight: 600 }}>
-                {weekStats.completedSlots} / {weekStats.plannedSlots}
-              </div>
-            </div>
-          </div>
-          <button
-            className="btn btn-sm btn-primary"
-            onClick={() => setAddingDate(today())}
-            id="week-add-slot-btn"
-          >
-            <Plus size={16} /> Planifier un créneau
-          </button>
+      <div className="day-progress">
+        <span className="small">
+          <strong className="tabular">{formatDuration(stats.doneMin)}</strong>
+          <span className="muted"> réalisées sur {formatDuration(stats.plannedMin)} planifiées</span>
+        </span>
+        <div className="bar" style={{ '--p': stats.plannedMin ? Math.min(1, stats.doneMin / stats.plannedMin) : 0 } as CSSProperties}>
+          <span />
         </div>
-      </section>
-
-      <div className="week-grid">
-        {days.map((dayDate) => {
-          const isToday = dayDate === today()
-          const dayItems = plan?.[dayDate] ?? []
-          const dayDoneMin = (sessions ?? [])
-            .filter((s) => s.date === dayDate)
-            .reduce((a, s) => a + s.durationMin, 0)
-
-          return (
-            <div
-              key={dayDate}
-              className={`week-day-col card ${isToday ? 'is-today' : ''}`}
-              id={`week-col-${dayDate}`}
-            >
-              <header className="week-day-header">
-                <div className="row spread">
-                  <div>
-                    <span className="week-day-name">{formatWeekday(dayDate)}</span>
-                    <span className={`week-day-number ${isToday ? 'is-today-pill' : ''}`}>
-                      {dayDate.split('-')[2]}
-                    </span>
-                  </div>
-                  <button
-                    className="icon-btn"
-                    style={{ width: 28, height: 28 }}
-                    onClick={() => setAddingDate(dayDate)}
-                    title={`Ajouter un créneau le ${dayDate}`}
-                    id={`week-add-${dayDate}`}
-                  >
-                    <Plus size={16} />
-                  </button>
-                </div>
-                {dayDoneMin > 0 && (
-                  <div className="tiny faint tabular" style={{ marginTop: 4 }}>
-                    {formatDuration(dayDoneMin)} fait
-                  </div>
-                )}
-              </header>
-
-              <div className="week-day-slots">
-                {dayItems.length === 0 ? (
-                  <div className="week-empty-slot faint tiny">Aucun créneau</div>
-                ) : (
-                  dayItems.map((item) => {
-                    const task = tasks?.get(item.taskId)
-                    if (!task) return null
-                    const done = item.status === 'done'
-                    const skipped = item.status === 'skipped'
-
-                    return (
-                      <div
-                        key={item.key}
-                        className={`week-slot-pill ${done ? 'is-done' : ''} ${skipped ? 'is-skipped' : ''}`}
-                        style={{ '--c': task.color } as React.CSSProperties}
-                        onClick={() => setSelectedSlot(item)}
-                        role="button"
-                        tabIndex={0}
-                        id={`week-slot-${item.key}`}
-                        title={`${task.name} (${minutesToTime(item.startMin)} - ${formatDuration(item.durationMin)})`}
-                      >
-                        <div className="row" style={{ gap: 6 }}>
-                          <TaskIcon task={task} size={22} />
-                          <span className="truncate week-slot-title">{task.name}</span>
-                        </div>
-                        <div className="row spread tiny faint tabular" style={{ marginTop: 4 }}>
-                          <span>{minutesToTime(item.startMin)}</span>
-                          <span className="row" style={{ gap: 3 }}>
-                            {item.recurrence && <Repeat size={10} />}
-                            {formatDuration(item.durationMin)}
-                          </span>
-                        </div>
-                      </div>
-                    )
-                  })
-                )}
-              </div>
-
-              <footer className="week-day-footer">
-                <Link to={`/?d=${dayDate}`} className="week-day-link tiny" id={`week-view-day-${dayDate}`}>
-                  <Calendar size={12} /> Vue jour
-                </Link>
-              </footer>
-            </div>
-          )
-        })}
       </div>
 
-      {addingDate && (
-        <AddSlotSheet
-          open={!!addingDate}
-          onClose={() => setAddingDate(null)}
-          date={addingDate}
-        />
-      )}
+      {days.map((dayDate) => {
+        const isToday = dayDate === today()
+        const items = plan?.[dayDate] ?? []
+        const doneMin = (sessions ?? []).filter((s) => s.date === dayDate).reduce((a, s) => a + s.durationMin, 0)
 
-      {selectedSlot && (
-        <SlotSheet
-          item={selectedSlot}
-          onClose={() => setSelectedSlot(null)}
-        />
-      )}
+        return (
+          <section className="section" key={dayDate} id={`week-col-${dayDate}`}>
+            <div className="row spread" style={{ paddingRight: 4 }}>
+              <div className="group-title" style={isToday ? { color: 'var(--accent)', fontWeight: 600 } : undefined}>
+                {formatDayLong(dayDate)}
+                {doneMin > 0 && <span className="tabular"> · {formatDuration(doneMin)} fait</span>}
+              </div>
+              <button
+                className="icon-btn"
+                style={{ width: 30, height: 30 }}
+                onClick={() => setAddingDate(dayDate)}
+                aria-label={`Ajouter un créneau le ${dayDate}`}
+                id={`week-add-${dayDate}`}
+              >
+                <Plus size={20} />
+              </button>
+            </div>
+            <div className="group">
+              {items.length === 0 && (
+                <div className="cell">
+                  <span className="cell-body muted">Aucun créneau</span>
+                </div>
+              )}
+              {items.map((item) => {
+                const task = tasks?.get(item.taskId)
+                if (!task) return null
+                const done = item.status === 'done'
+                const skipped = item.status === 'skipped'
+                return (
+                  <div
+                    key={item.key}
+                    className={`cell has-icon is-tappable ${skipped ? 'is-skipped' : ''}`}
+                    onClick={() => setSelectedSlot(item)}
+                    role="button"
+                    tabIndex={0}
+                    id={`week-slot-${item.key}`}
+                    onKeyDown={(e) => e.key === 'Enter' && setSelectedSlot(item)}
+                  >
+                    <TaskIcon task={task} size={34} />
+                    <div className="cell-body">
+                      <div className="cell-title truncate" style={done || skipped ? { color: 'var(--label-2)' } : undefined}>
+                        {task.name}
+                      </div>
+                      <div className="cell-sub row tabular" style={{ '--gap': '5px' } as CSSProperties}>
+                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
+                        <span>· {formatDuration(item.durationMin)}</span>
+                        {item.recurrence && <Repeat size={12} />}
+                        {skipped && <span>· Sauté</span>}
+                      </div>
+                    </div>
+                    {done && (
+                      <span className="check is-done">
+                        <Check size={16} strokeWidth={3} />
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </section>
+        )
+      })}
+
+      {addingDate && <AddSlotSheet open onClose={() => setAddingDate(null)} date={addingDate} />}
+      {selectedSlot && <SlotSheet item={selectedSlot} onClose={() => setSelectedSlot(null)} />}
     </>
   )
 }

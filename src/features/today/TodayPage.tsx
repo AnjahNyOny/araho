@@ -1,8 +1,7 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { Fragment, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, CalendarPlus, Play, Check, SkipForward, Repeat, Sparkles } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, CalendarPlus, Play, Check, Repeat, ListChecks } from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
-import { ProgressRing } from '../../components/ProgressRing'
 import { useActiveSession, useDayPlan, useNow, useSessions, useTaskMap, useTasks } from '../../db/hooks'
 import { elapsedMs, startSession } from '../../db/repo'
 import type { PlanItem, Task } from '../../db/types'
@@ -43,8 +42,7 @@ export function TodayPage() {
     const items = (plan ?? []).filter((i) => i.status !== 'skipped')
     const plannedMin = items.reduce((a, i) => a + i.durationMin, 0)
     const doneMin = (sessions ?? []).reduce((a, s) => a + s.durationMin, 0)
-    const doneCount = items.filter((i) => i.status === 'done').length
-    return { plannedMin, doneMin, doneCount, count: items.length }
+    return { plannedMin, doneMin }
   }, [plan, sessions])
 
   const nowMin = nowMinutes(new Date(now))
@@ -65,20 +63,12 @@ export function TodayPage() {
   return (
     <>
       <PageHeader
-        eyebrow={isToday ? formatDayLong(date) : relativeDayLabel(date) === formatDayLong(date) ? 'Planning' : formatDayLong(date)}
-        title={
-          isToday ? (
-            <>
-              {greeting()} <span className="gradient-text">✦</span>
-            </>
-          ) : (
-            relativeDayLabel(date)
-          )
-        }
+        eyebrow={isToday ? formatDayLong(date) : 'Planning'}
+        title={isToday ? "Aujourd'hui" : relativeDayLabel(date)}
         actions={
           <>
             <button className="icon-btn" onClick={() => setDate(addDays(date, -1))} aria-label="Jour précédent" id="today-prev">
-              <ChevronLeft size={20} />
+              <ChevronLeft size={24} />
             </button>
             {!isToday && (
               <button className="btn btn-sm btn-secondary" onClick={() => setDate(today())} id="today-reset">
@@ -86,10 +76,10 @@ export function TodayPage() {
               </button>
             )}
             <button className="icon-btn" onClick={() => setDate(addDays(date, 1))} aria-label="Jour suivant" id="today-next">
-              <ChevronRight size={20} />
+              <ChevronRight size={24} />
             </button>
-            <button className="btn btn-sm btn-primary desktop-only" onClick={() => setAdding(true)} id="today-add-desktop">
-              <Plus size={16} /> Créneau
+            <button className="icon-btn is-filled" onClick={() => setAdding(true)} aria-label="Ajouter un créneau" id="today-add">
+              <Plus size={22} />
             </button>
           </>
         }
@@ -98,44 +88,44 @@ export function TodayPage() {
       {!loading && taskList.length === 0 ? (
         <Onboarding onCreate={() => setCreatingTask(true)} />
       ) : (
-        <div className="today-layout">
-          <section className="card summary animate-in" aria-label="Progression du jour">
-            <ProgressRing value={stats.plannedMin ? stats.doneMin / stats.plannedMin : 0} size={112} stroke={10}>
-              <div>
-                <div className="display tabular" style={{ fontSize: 24, fontWeight: 600 }}>
-                  {stats.plannedMin ? Math.round((stats.doneMin / stats.plannedMin) * 100) : 0}%
-                </div>
-                <div className="tiny faint">du plan</div>
+        <>
+          {stats.plannedMin > 0 && (
+            <div className="day-progress animate-in" aria-label="Progression du jour">
+              <div className="row spread">
+                <span className="small">
+                  <strong className="tabular">{formatDuration(stats.doneMin)}</strong>
+                  <span className="muted"> réalisées sur {formatDuration(stats.plannedMin)}</span>
+                </span>
+                <span className="small muted tabular">
+                  {Math.round(Math.min(1, stats.doneMin / stats.plannedMin) * 100)} %
+                </span>
               </div>
-            </ProgressRing>
-            <div className="summary-stats">
-              <Stat label="Réalisé" value={formatDuration(stats.doneMin)} accent />
-              <Stat label="Planifié" value={formatDuration(stats.plannedMin)} />
-              <Stat label="Créneaux" value={`${stats.doneCount}/${stats.count}`} />
+              <div className="bar" style={{ '--p': Math.min(1, stats.doneMin / stats.plannedMin) } as CSSProperties}>
+                <span />
+              </div>
             </div>
-          </section>
+          )}
 
           <section aria-label="Créneaux du jour">
             {loading ? null : plan.length === 0 ? (
               <EmptyState
-                icon={<CalendarPlus size={28} />}
-                title="Aucun créneau prévu"
+                icon={<CalendarPlus size={56} strokeWidth={1.4} />}
+                title="Aucun créneau"
                 text="Alloue du temps à tes tâches pour structurer ta journée."
                 action={
                   <button className="btn btn-primary" onClick={() => setAdding(true)} id="today-empty-add">
-                    <Plus size={18} /> Ajouter un créneau
+                    Ajouter un créneau
                   </button>
                 }
               />
             ) : (
-              <ol className="timeline stagger">
+              <div className="group animate-in">
                 {plan.map((item, idx) => (
-                  <li key={item.key} style={{ display: 'contents' }}>
+                  <Fragment key={item.key}>
                     {idx === nowIndex && <NowMarker min={nowMin} />}
-                    <SlotCard
+                    <SlotRow
                       item={item}
                       task={tasks.get(item.taskId)!}
-                      isNow={isToday && item.startMin <= nowMin && nowMin < item.startMin + item.durationMin}
                       isPast={(isToday && item.startMin + item.durationMin <= nowMin) || date < today()}
                       activeMs={
                         active && item.slot && active.slotId === item.slot.id ? elapsedMs(active, now) : null
@@ -144,40 +134,19 @@ export function TodayPage() {
                       onOpen={() => setSelected(item)}
                       onStart={() => quickStart(item)}
                     />
-                  </li>
+                  </Fragment>
                 ))}
                 {isToday && nowIndex === -1 && <NowMarker min={nowMin} />}
-              </ol>
+              </div>
             )}
           </section>
-        </div>
+        </>
       )}
-
-      <button className="fab" onClick={() => setAdding(true)} aria-label="Ajouter un créneau" id="today-fab">
-        <Plus size={26} />
-      </button>
 
       <AddSlotSheet open={adding} onClose={() => setAdding(false)} date={date} onNeedTask={() => setCreatingTask(true)} />
       <SlotSheet item={selected} onClose={() => setSelected(null)} />
       <TaskFormSheet open={creatingTask} onClose={() => setCreatingTask(false)} />
     </>
-  )
-}
-
-function greeting() {
-  const h = new Date().getHours()
-  if (h < 5) return 'Bonne nuit'
-  if (h < 12) return 'Bonjour'
-  if (h < 18) return 'Bon après-midi'
-  return 'Bonsoir'
-}
-
-function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
-  return (
-    <div className="stat">
-      <div className="eyebrow">{label}</div>
-      <div className={`display tabular stat-value ${accent ? 'gradient-text' : ''}`}>{value}</div>
-    </div>
   )
 }
 
@@ -190,10 +159,9 @@ function NowMarker({ min }: { min: number }) {
   )
 }
 
-interface SlotCardProps {
+interface SlotRowProps {
   item: PlanItem
   task: Task
-  isNow: boolean
   isPast: boolean
   activeMs: number | null
   paused: boolean
@@ -201,91 +169,83 @@ interface SlotCardProps {
   onStart: () => void
 }
 
-function SlotCard({ item, task, isNow, isPast, activeMs, paused, onOpen, onStart }: SlotCardProps) {
+function SlotRow({ item, task, isPast, activeMs, paused, onOpen, onStart }: SlotRowProps) {
   const done = item.status === 'done'
   const skipped = item.status === 'skipped'
   const running = activeMs !== null
   const missed = isPast && !done && !skipped && !running
-  const cls = ['slot-card', 'card', 'card-interactive', isNow && 'is-now', done && 'is-done', skipped && 'is-skipped', missed && 'is-missed', running && 'is-running']
-    .filter(Boolean)
-    .join(' ')
 
   return (
-    <div className="slot-row">
-      <div className="slot-time tabular">
-        <span>{minutesToTime(item.startMin)}</span>
-        <span className="faint">{minutesToTime(item.startMin + item.durationMin)}</span>
-      </div>
-      <div
-        className={cls}
-        style={{ '--c': task.color } as CSSProperties}
-        onClick={onOpen}
-        role="button"
-        tabIndex={0}
-        id={`slot-${item.key}`}
-        onKeyDown={(e) => e.key === 'Enter' && onOpen()}
-      >
-        <TaskIcon task={task} size={42} />
-        <div className="grow">
-          <div className="slot-name truncate">{task.name}</div>
-          <div className="small muted row" style={{ '--gap': '6px' } as CSSProperties}>
-            {running ? (
-              <>
-                {paused ? <span>En pause</span> : <span className="live-dot" />}
-                <span className="tabular" style={{ color: 'var(--text)' }}>{formatClock(activeMs)}</span>
-                <span>/ {formatDuration(item.durationMin)}</span>
-              </>
-            ) : (
-              <>
-                <span>{formatDuration(item.durationMin)}</span>
-                {item.recurrence && <Repeat size={12} className="faint" />}
-                {missed && <span className="slot-flag">Non commencé</span>}
-                {skipped && <span className="slot-flag">Sauté</span>}
-              </>
-            )}
-          </div>
+    <div
+      className={`cell has-icon is-tappable ${skipped ? 'is-skipped' : ''}`}
+      onClick={onOpen}
+      role="button"
+      tabIndex={0}
+      id={`slot-${item.key}`}
+      onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+    >
+      <TaskIcon task={task} size={34} />
+      <div className="cell-body">
+        <div className="cell-title truncate" style={skipped || done ? { color: 'var(--label-2)' } : undefined}>
+          {task.name}
         </div>
-        {done ? (
-          <span className="slot-check" aria-label="Fait">
-            <Check size={18} strokeWidth={3} />
-          </span>
-        ) : skipped ? (
-          <SkipForward size={18} className="faint" />
-        ) : (
-          <button
-            className={`slot-play ${isNow || running ? 'is-primary' : ''}`}
-            aria-label="Démarrer"
-            id={`slot-start-${item.key}`}
-            onClick={(e) => {
-              e.stopPropagation()
-              onStart()
-            }}
-          >
-            <Play size={16} fill="currentColor" />
-          </button>
-        )}
+        <div className="cell-sub row" style={{ '--gap': '5px' } as CSSProperties}>
+          {running ? (
+            <>
+              {paused ? <span>En pause</span> : <span className="live-dot" />}
+              <span className="tabular" style={{ color: 'var(--accent)', fontWeight: 600 }}>{formatClock(activeMs)}</span>
+              <span>/ {formatDuration(item.durationMin)}</span>
+            </>
+          ) : (
+            <>
+              <span className="tabular">
+                {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
+              </span>
+              <span>· {formatDuration(item.durationMin)}</span>
+              {item.recurrence && <Repeat size={12} />}
+              {missed && <span style={{ color: 'var(--warning)' }}>· Non commencé</span>}
+              {skipped && <span>· Sauté</span>}
+            </>
+          )}
+        </div>
       </div>
+      {done ? (
+        <span className="check is-done" aria-label="Fait">
+          <Check size={16} strokeWidth={3} />
+        </span>
+      ) : skipped ? null : (
+        <button
+          className={`check ${running ? 'is-done' : 'is-play'}`}
+          aria-label={running ? 'Reprendre' : 'Démarrer'}
+          id={`slot-start-${item.key}`}
+          onClick={(e) => {
+            e.stopPropagation()
+            onStart()
+          }}
+        >
+          <Play size={12} fill="currentColor" style={{ marginLeft: 1 }} />
+        </button>
+      )}
     </div>
   )
 }
 
 function Onboarding({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="onboarding card animate-in">
-      <div className="onboarding-glow" />
-      <div className="empty-icon">
-        <Sparkles size={28} />
+    <div className="empty animate-in" style={{ paddingTop: 72 }}>
+      <div className="empty-icon" style={{ color: 'var(--accent)' }}>
+        <ListChecks size={60} strokeWidth={1.4} />
       </div>
-      <h2>Bienvenue sur Araho</h2>
+      <h2 style={{ fontSize: 26, fontWeight: 700 }}>Bienvenue sur Araho</h2>
       <p className="muted">
-        Crée une tâche (ex. <strong>Apprendre le JavaScript</strong>), alloue-lui des créneaux, puis documente ce
-        que tu as appris à la fin de chaque session pour suivre ta progression.
+        Crée une tâche (ex. <strong>Apprendre le JavaScript</strong>), alloue-lui des créneaux, puis note ce que tu
+        as appris à la fin de chaque session.
       </p>
-      <ol className="onboarding-steps">
-        <li><span>1</span> Crée une tâche et son objectif quotidien</li>
-        <li><span>2</span> Démarre la session quand le créneau arrive</li>
-        <li><span>3</span> Note ce que tu as appris en 1 minute</li>
-      </ol>
+      <div className="group onboarding-steps">
+        <div className="cell"><span className="step-num">1</span><span className="cell-body">Crée une tâche et son objectif</span></div>
+        <div className="cell"><span className="step-num">2</span><span className="cell-body">Démarre la session à l’heure prévue</span></div>
+        <div className="cell"><span className="step-num">3</span><span className="cell-body">Note ce que tu as appris</span></div>
+      </div>
       <button className="btn btn-primary btn-lg" onClick={onCreate} id="onboarding-create-task">
         <Plus size={18} /> Créer ma première tâche
       </button>

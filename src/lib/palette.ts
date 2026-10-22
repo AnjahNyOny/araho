@@ -1,22 +1,23 @@
-/** Palette de couleurs des tâches (harmonisée avec le thème sombre). */
+/** Couleurs des tâches : couleurs système Apple (variables CSS, adaptées clair/sombre). */
 export const TASK_COLORS = [
-  { name: 'Violet', value: 'hsl(258 88% 70%)' },
-  { name: 'Indigo', value: 'hsl(232 85% 70%)' },
-  { name: 'Ciel', value: 'hsl(200 92% 62%)' },
-  { name: 'Turquoise', value: 'hsl(174 72% 52%)' },
-  { name: 'Menthe', value: 'hsl(152 62% 55%)' },
-  { name: 'Citron', value: 'hsl(78 70% 55%)' },
-  { name: 'Ambre', value: 'hsl(40 95% 60%)' },
-  { name: 'Corail', value: 'hsl(14 90% 64%)' },
-  { name: 'Framboise', value: 'hsl(342 85% 66%)' },
-  { name: 'Orchidée', value: 'hsl(296 70% 68%)' },
+  { name: 'Bleu', value: 'var(--sys-blue)' },
+  { name: 'Vert', value: 'var(--sys-green)' },
+  { name: 'Orange', value: 'var(--sys-orange)' },
+  { name: 'Rouge', value: 'var(--sys-red)' },
+  { name: 'Rose', value: 'var(--sys-pink)' },
+  { name: 'Violet', value: 'var(--sys-purple)' },
+  { name: 'Indigo', value: 'var(--sys-indigo)' },
+  { name: 'Ciel', value: 'var(--sys-cyan)' },
+  { name: 'Menthe', value: 'var(--sys-mint)' },
+  { name: 'Jaune', value: 'var(--sys-yellow)' },
 ] as const
 
+/** Clés d'icônes (résolues vers des symboles Lucide dans components/TaskGlyph). */
 export const TASK_ICONS = [
-  '📚', '💻', '🧠', '✍️', '🎯', '🏋️', '🧘', '🎸',
-  '🎨', '🌍', '🗣️', '📈', '🔬', '🧩', '🚀', '💡',
-  '📝', '🎧', '🍳', '🏃', '📷', '💼', '🧮', '🌱',
-]
+  'book', 'code', 'brain', 'pen', 'target', 'dumbbell', 'lotus', 'music',
+  'palette', 'globe', 'languages', 'chart', 'flask', 'puzzle', 'rocket', 'bulb',
+  'note', 'headphones', 'chef', 'run', 'camera', 'briefcase', 'calculator', 'sprout',
+] as const
 
-export const DEFAULT_COLOR = TASK_COLORS[0].value
-export const DEFAULT_ICON = '🎯'
+export const DEFAULT_COLOR: string = TASK_COLORS[0].value
+export const DEFAULT_ICON = 'target'

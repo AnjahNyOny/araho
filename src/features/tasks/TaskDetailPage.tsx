@@ -1,22 +1,8 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import {
-  ArrowLeft,
-  Play,
-  Pencil,
-  Archive,
-  ArchiveRestore,
-  Trash2,
-  Flame,
-  Clock,
-  CalendarCheck,
-  Gauge,
-  Repeat,
-  Plus,
-  BookOpen,
-} from 'lucide-react'
+import { ChevronLeft, Play, Pencil, Archive, ArchiveRestore, Trash2, Repeat, Plus, BookOpen } from 'lucide-react'
 import { NoteCard } from '../journal/NoteCard'
-import { TaskIcon, EmptyState } from '../../components/ui'
+import { TaskIcon, EmptyState, Section } from '../../components/ui'
 import { useActiveSession, useNotes, useRecurrences, useSessions, useTask } from '../../db/hooks'
 import * as repo from '../../db/repo'
 import { computeTaskStats } from '../../db/stats'
@@ -43,7 +29,7 @@ export function TaskDetailPage() {
 
   if (task === undefined) return null
   if (task === null) {
-    return <EmptyState icon={<BookOpen size={28} />} title="Tâche introuvable" action={<Link className="btn btn-secondary" to="/tasks">Retour</Link>} />
+    return <EmptyState icon={<BookOpen size={56} strokeWidth={1.4} />} title="Tâche introuvable" action={<Link className="btn btn-secondary" to="/tasks">Retour</Link>} />
   }
 
   const start = async () => {
@@ -57,137 +43,116 @@ export function TaskDetailPage() {
 
   return (
     <div style={{ '--c': task.color } as CSSProperties}>
-      <header className="row spread" style={{ marginBottom: 14 }}>
-        <button className="icon-btn" onClick={() => navigate('/tasks')} aria-label="Retour" id="task-back">
-          <ArrowLeft size={22} />
+      <header className="row spread" style={{ marginBottom: 4 }}>
+        <button className="btn btn-ghost" onClick={() => navigate('/tasks')} id="task-back" style={{ paddingLeft: 0 }}>
+          <ChevronLeft size={24} style={{ marginRight: -4 }} /> Tâches
         </button>
-        <div className="row" style={{ '--gap': '4px' } as CSSProperties}>
-          <button className="icon-btn" onClick={() => setEditing(true)} aria-label="Modifier" id="task-edit">
-            <Pencil size={18} />
-          </button>
-          <button
-            className="icon-btn"
-            aria-label={task.archived ? 'Désarchiver' : 'Archiver'}
-            id="task-archive"
-            onClick={() => repo.setTaskArchived(task.id, !task.archived)}
-          >
-            {task.archived ? <ArchiveRestore size={18} /> : <Archive size={18} />}
-          </button>
-          <button
-            className="icon-btn"
-            aria-label="Supprimer"
-            id="task-delete"
-            onClick={async () => {
-              if (!confirm(`Supprimer « ${task.name} » ? Les créneaux futurs seront retirés.`)) return
-              await repo.deleteTask(task.id)
-              navigate('/tasks', { replace: true })
-            }}
-          >
-            <Trash2 size={18} />
-          </button>
-        </div>
+        <button className="btn btn-ghost" onClick={() => setEditing(true)} id="task-edit">
+          <Pencil size={16} /> Modifier
+        </button>
       </header>
 
-      <section className="task-hero card animate-in">
-        <div className="task-hero-glow" />
-        <TaskIcon task={task} size={68} />
+      <div className="page-header">
         <div className="grow">
-          <h1 className="display task-hero-title">{task.name}</h1>
-          {task.description && <p className="muted">{task.description}</p>}
-          <p className="small faint" style={{ marginTop: 4 }}>
-            {task.dailyGoalMin ? `Objectif : ${formatDuration(task.dailyGoalMin)} / jour · ` : ''}
-            Commencé {since === 0 ? 'aujourd’hui' : `il y a ${since} jour${since > 1 ? 's' : ''}`}
-          </p>
+          <div className="caption">
+            {task.dailyGoalMin ? `${formatDuration(task.dailyGoalMin)} / jour · ` : ''}
+            {since === 0 ? 'depuis aujourd’hui' : `depuis ${since} jour${since > 1 ? 's' : ''}`}
+          </div>
+          <h1 className="page-title">{task.name}</h1>
+          {task.description && <p className="muted" style={{ marginTop: 2 }}>{task.description}</p>}
         </div>
-        <button className="btn btn-primary btn-lg task-hero-start" onClick={start} id="task-start">
-          <Play size={18} fill="currentColor" /> {active?.taskId === task.id ? 'Reprendre' : 'Démarrer'}
+        <TaskIcon task={task} size={52} />
+      </div>
+
+      <div className="section">
+        <button className="btn btn-primary btn-lg btn-block" onClick={start} id="task-start">
+          <Play size={17} fill="currentColor" /> {active?.taskId === task.id ? 'Reprendre la session' : 'Démarrer une session'}
         </button>
-      </section>
+      </div>
 
       {stats && (
-        <section className="kpis stagger" aria-label="Statistiques">
-          <Kpi icon={<Clock size={16} />} label="Temps total" value={formatDuration(stats.totalMin)} />
-          <Kpi icon={<Flame size={16} />} label="Série en cours" value={`${stats.streak} j`} sub={`Record ${stats.bestStreak} j`} />
-          <Kpi icon={<CalendarCheck size={16} />} label="Sessions" value={String(stats.sessionsCount)} sub={`${stats.activeDays} jours actifs`} />
-          <Kpi
-            icon={<Gauge size={16} />}
-            label="Compréhension"
-            value={stats.avgConfidence ? `${stats.avgConfidence.toFixed(1)}/5` : '—'}
-          />
-        </section>
+        <Section title="Progression">
+          <div className="cell">
+            <span className="cell-body">Temps total</span>
+            <span className="cell-value tabular">{formatDuration(stats.totalMin)}</span>
+          </div>
+          <div className="cell">
+            <span className="cell-body">Série en cours</span>
+            <span className="cell-value tabular">{stats.streak} j <span className="faint">· record {stats.bestStreak} j</span></span>
+          </div>
+          <div className="cell">
+            <span className="cell-body">Sessions</span>
+            <span className="cell-value tabular">{stats.sessionsCount} <span className="faint">· {stats.activeDays} jours actifs</span></span>
+          </div>
+          <div className="cell">
+            <span className="cell-body">Compréhension moyenne</span>
+            <span className="cell-value tabular">{stats.avgConfidence ? `${stats.avgConfidence.toFixed(1)} / 5` : '—'}</span>
+          </div>
+        </Section>
       )}
 
       {stats && (
-        <section className="card card-pad animate-in" style={{ marginTop: 16 }} aria-label="Historique">
-          <div className="row spread" style={{ marginBottom: 14 }}>
-            <h2 className="section-title">3 dernières semaines</h2>
-            {task.dailyGoalMin > 0 && <span className="tiny faint">— objectif {formatDuration(task.dailyGoalMin)}</span>}
-          </div>
-          <div className="history" style={{ '--goal': task.dailyGoalMin / maxBar } as CSSProperties}>
-            {task.dailyGoalMin > 0 && <div className="history-goal" />}
-            {stats.history.map((h) => (
-              <div key={h.date} className="history-col" title={`${formatDayMonth(h.date)} : ${formatDuration(h.min)}`}>
-                <div className="history-bar-wrap">
-                  <div
-                    className={`history-bar ${task.dailyGoalMin && h.min >= task.dailyGoalMin ? 'is-goal' : ''}`}
-                    style={{ height: `${(h.min / maxBar) * 100}%` }}
-                  />
+        <Section title="3 dernières semaines" footer={task.dailyGoalMin > 0 ? `Trait pointillé : objectif de ${formatDuration(task.dailyGoalMin)}` : undefined}>
+          <div className="pad">
+            <div className="history" style={{ '--goal': task.dailyGoalMin / maxBar } as CSSProperties}>
+              {task.dailyGoalMin > 0 && <div className="history-goal" />}
+              {stats.history.map((h) => (
+                <div key={h.date} className="history-col" title={`${formatDayMonth(h.date)} : ${formatDuration(h.min)}`}>
+                  <div className="history-bar-wrap">
+                    <div className="history-bar" style={{ height: `${(h.min / maxBar) * 100}%` }} />
+                  </div>
+                  <span className={`history-label ${h.date === today() ? 'is-today' : ''}`}>
+                    {formatWeekday(h.date).charAt(0)}
+                  </span>
                 </div>
-                <span className={`history-label ${h.date === today() ? 'is-today' : ''}`}>
-                  {formatWeekday(h.date).charAt(0)}
-                </span>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
-        </section>
+        </Section>
       )}
 
-      <section className="card card-pad animate-in" style={{ marginTop: 16 }} aria-label="Créneaux récurrents">
-        <div className="row spread" style={{ marginBottom: 10 }}>
-          <h2 className="section-title">Créneaux réguliers</h2>
-          <button className="btn btn-sm btn-secondary" onClick={() => setPlanning(true)} id="task-add-slot">
+      <Section
+        title="Créneaux réguliers"
+        action={
+          <button className="btn btn-ghost btn-sm" onClick={() => setPlanning(true)} id="task-add-slot">
             <Plus size={15} /> Planifier
           </button>
-        </div>
-        {recurrences && recurrences.length === 0 && (
-          <p className="small muted">Aucun créneau récurrent. Planifie un horaire fixe pour en faire une habitude.</p>
-        )}
-        <ul className="rec-list">
-          {recurrences?.map((r) => (
-            <li key={r.id} className="rec-item">
-              <Repeat size={16} className="faint" />
-              <div className="grow">
-                <div style={{ fontWeight: 600 }}>{describeDays(r.daysOfWeek)}</div>
-                <div className="small muted tabular">
-                  {minutesToTime(r.startMin)} – {minutesToTime(r.startMin + r.durationMin)} · {formatDuration(r.durationMin)}
-                </div>
+        }
+        footer={recurrences && recurrences.length === 0 ? 'Planifie un horaire fixe pour en faire une habitude.' : undefined}
+      >
+        {recurrences?.map((r) => (
+          <div key={r.id} className="cell">
+            <Repeat size={18} className="muted" />
+            <div className="cell-body">
+              <div className="cell-title">{describeDays(r.daysOfWeek)}</div>
+              <div className="cell-sub tabular">
+                {minutesToTime(r.startMin)} – {minutesToTime(r.startMin + r.durationMin)} · {formatDuration(r.durationMin)}
               </div>
-              <button
-                className="icon-btn"
-                aria-label="Supprimer la série"
-                id={`rec-delete-${r.id}`}
-                onClick={async () => {
-                  if (confirm('Supprimer cette série de créneaux ? L’historique est conservé.')) await repo.deleteRecurrence(r.id)
-                }}
-              >
-                <Trash2 size={16} />
-              </button>
-            </li>
-          ))}
-        </ul>
-      </section>
-
-      <section style={{ marginTop: 28 }} aria-label="Ce que j'ai appris">
-        <div className="row spread" style={{ marginBottom: 14 }}>
-          <h2 className="section-title">Ce que j’ai appris</h2>
-          <span className="small faint">{notes?.length ?? 0} note{(notes?.length ?? 0) > 1 ? 's' : ''}</span>
-        </div>
-        {notes && notes.length === 0 ? (
-          <div className="card card-pad muted small" style={{ textAlign: 'center' }}>
-            Tes notes de fin de session apparaîtront ici, comme un journal de ta progression.
+            </div>
+            <button
+              className="icon-btn"
+              style={{ color: 'var(--danger)' }}
+              aria-label="Supprimer la série"
+              id={`rec-delete-${r.id}`}
+              onClick={async () => {
+                if (confirm('Supprimer cette série de créneaux ? L’historique est conservé.')) await repo.deleteRecurrence(r.id)
+              }}
+            >
+              <Trash2 size={18} />
+            </button>
           </div>
+        ))}
+        {recurrences && recurrences.length === 0 && (
+          <div className="cell"><span className="cell-body muted">Aucun créneau récurrent</span></div>
+        )}
+      </Section>
+
+      <section style={{ marginTop: 8 }} aria-label="Ce que j'ai appris">
+        <div className="group-title">Ce que j’ai appris · {notes?.length ?? 0}</div>
+        {notes && notes.length === 0 ? (
+          <div className="group"><div className="cell"><span className="cell-body muted small">Tes notes de fin de session apparaîtront ici, comme un journal de ta progression.</span></div></div>
         ) : (
-          <div className="notes-timeline stagger">
+          <div className="notes-list">
             {notes?.map((n) => (
               <NoteCard key={n.id} note={n} session={sessionMap.get(n.sessionId)} />
             ))}
@@ -195,19 +160,33 @@ export function TaskDetailPage() {
         )}
       </section>
 
+      <div className="section" style={{ marginTop: 28 }}>
+        <div className="group">
+          <button
+            className="cell is-accent"
+            id="task-archive"
+            onClick={() => repo.setTaskArchived(task.id, !task.archived)}
+          >
+            {task.archived ? <ArchiveRestore size={20} /> : <Archive size={20} />}
+            <span className="cell-body">{task.archived ? 'Désarchiver' : 'Archiver la tâche'}</span>
+          </button>
+          <button
+            className="cell is-danger"
+            id="task-delete"
+            onClick={async () => {
+              if (!confirm(`Supprimer « ${task.name} » ? Les créneaux futurs seront retirés.`)) return
+              await repo.deleteTask(task.id)
+              navigate('/tasks', { replace: true })
+            }}
+          >
+            <Trash2 size={20} />
+            <span className="cell-body">Supprimer la tâche</span>
+          </button>
+        </div>
+      </div>
+
       <TaskFormSheet open={editing} onClose={() => setEditing(false)} task={task} />
       <AddSlotSheet open={planning} onClose={() => setPlanning(false)} date={today()} taskId={task.id} />
-    </div>
-  )
-}
-
-function Kpi({ icon, label, value, sub }: { icon: React.ReactNode; label: string; value: string; sub?: string }) {
-  return (
-    <div className="card kpi">
-      <div className="kpi-icon">{icon}</div>
-      <div className="eyebrow">{label}</div>
-      <div className="display tabular kpi-value">{value}</div>
-      {sub && <div className="tiny faint">{sub}</div>}
     </div>
   )
 }

@@ -1,11 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-// Polices variables locales (fonctionnent sans connexion Internet)
-import '@fontsource-variable/inter'
-import '@fontsource-variable/outfit'
-
-// Styles Araho
+// Styles Araho (police système Apple : aucune police à embarquer)
 import './styles/tokens.css'
 import './styles/base.css'
 import './components/components.css'

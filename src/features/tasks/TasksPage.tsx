@@ -1,6 +1,6 @@
-import { useMemo, useState, type CSSProperties } from 'react'
+import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
-import { Plus, Flame, Archive, LayoutGrid } from 'lucide-react'
+import { Plus, ChevronRight, ListChecks, Flame } from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
 import { useSessions, useTasks } from '../../db/hooks'
 import { computeStreak, minutesByDate } from '../../db/stats'
@@ -26,91 +26,74 @@ export function TasksPage() {
         eyebrow="Tes objectifs"
         title="Tâches"
         actions={
-          <>
-            <button
-              className={`btn btn-sm ${showArchived ? 'btn-secondary' : 'btn-ghost'}`}
-              onClick={() => setShowArchived(!showArchived)}
-              id="tasks-toggle-archived"
-            >
-              <Archive size={15} /> Archivées
-            </button>
-            <button className="btn btn-sm btn-primary desktop-only" onClick={() => setCreating(true)} id="tasks-add-desktop">
-              <Plus size={16} /> Nouvelle tâche
-            </button>
-          </>
+          <button className="icon-btn is-filled" onClick={() => setCreating(true)} aria-label="Nouvelle tâche" id="tasks-add">
+            <Plus size={22} />
+          </button>
         }
       />
 
       {tasks && tasks.length === 0 ? (
         <EmptyState
-          icon={<LayoutGrid size={28} />}
+          icon={<ListChecks size={56} strokeWidth={1.4} />}
           title="Aucune tâche"
-          text="Une tâche = un objectif sur lequel tu veux progresser (ex. Apprendre le JavaScript, Sport, Lecture…)."
+          text="Une tâche est un objectif sur lequel tu veux progresser (Apprendre le JavaScript, Sport, Lecture…)."
           action={
             <button className="btn btn-primary" onClick={() => setCreating(true)} id="tasks-empty-add">
-              <Plus size={18} /> Créer une tâche
+              Créer une tâche
             </button>
           }
         />
       ) : (
-        <div className="task-grid stagger">
-          {tasks?.map((t) => <TaskCard key={t.id} task={t} sessions={byTask.get(t.id) ?? []} />)}
+        <div className="group animate-in">
+          {tasks?.map((t) => <TaskRow key={t.id} task={t} sessions={byTask.get(t.id) ?? []} />)}
         </div>
       )}
 
-      <button className="fab" onClick={() => setCreating(true)} aria-label="Nouvelle tâche" id="tasks-fab">
-        <Plus size={26} />
-      </button>
+      <div className="group-footer" style={{ marginTop: 14 }}>
+        <label className="row" style={{ gap: 10 }}>
+          <input
+            id="tasks-toggle-archived"
+            type="checkbox"
+            className="switch"
+            checked={showArchived}
+            onChange={(e) => setShowArchived(e.target.checked)}
+          />
+          <span>Afficher les tâches archivées</span>
+        </label>
+      </div>
+
       <TaskFormSheet open={creating} onClose={() => setCreating(false)} />
     </>
   )
 }
 
-function TaskCard({ task, sessions }: { task: Task; sessions: Session[] }) {
+function TaskRow({ task, sessions }: { task: Task; sessions: Session[] }) {
   const t = today()
   const byDate = minutesByDate(sessions)
   const todayMin = byDate.get(t) ?? 0
-  const total = sessions.reduce((a, s) => a + s.durationMin, 0)
   const streak = computeStreak(new Set(byDate.keys()), t)
-  const pct = task.dailyGoalMin ? Math.min(1, todayMin / task.dailyGoalMin) : 0
 
   return (
     <Link
       to={`/tasks/${task.id}`}
-      className={`card card-interactive task-card ${task.archived ? 'is-archived' : ''}`}
-      style={{ '--c': task.color, '--p': pct } as CSSProperties}
+      className={`cell has-icon ${task.archived ? 'is-skipped' : ''}`}
       id={`task-card-${task.id}`}
     >
-      <div className="task-card-glow" />
-      <div className="row spread">
-        <TaskIcon task={task} size={46} />
-        {streak > 0 && (
-          <span className="streak" title="Jours consécutifs">
-            <Flame size={14} /> {streak}
-          </span>
-        )}
-      </div>
-      <div>
-        <h3 className="task-card-name">{task.name}</h3>
-        <p className="small muted truncate">{task.description || (task.dailyGoalMin ? `${formatDuration(task.dailyGoalMin)} par jour` : 'Sans objectif quotidien')}</p>
-      </div>
-      {task.dailyGoalMin > 0 && (
-        <div className="stack" style={{ '--gap': '6px' } as CSSProperties}>
-          <div className="row spread tiny">
-            <span className="muted">Aujourd’hui</span>
-            <span className="tabular">
-              {formatDuration(todayMin)} / {formatDuration(task.dailyGoalMin)}
-            </span>
-          </div>
-          <div className="bar">
-            <span />
-          </div>
+      <TaskIcon task={task} size={34} />
+      <div className="cell-body">
+        <div className="cell-title truncate">{task.name}</div>
+        <div className="cell-sub truncate">
+          {task.dailyGoalMin
+            ? `${formatDuration(todayMin)} / ${formatDuration(task.dailyGoalMin)} aujourd’hui`
+            : task.description || 'Sans objectif quotidien'}
         </div>
-      )}
-      <div className="row spread tiny faint">
-        <span>Total : {formatDuration(total)}</span>
-        <span>{sessions.length} session{sessions.length > 1 ? 's' : ''}</span>
       </div>
+      {streak > 0 && (
+        <span className="streak tiny tabular">
+          <Flame size={13} /> {streak}
+        </span>
+      )}
+      <ChevronRight size={18} className="cell-chevron" />
     </Link>
   )
 }

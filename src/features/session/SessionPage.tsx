@@ -56,7 +56,6 @@ export function SessionPage() {
 
   return (
     <div className="session-page" style={{ '--c': task.color } as CSSProperties}>
-      <div className="session-aura" />
       <header className="session-top">
         <button
           className="icon-btn"
@@ -77,11 +76,11 @@ export function SessionPage() {
 
       <div className="session-center">
         <div className="row session-task" style={{ '--gap': '12px' } as CSSProperties}>
-          <TaskIcon task={task} size={44} />
+          <TaskIcon task={task} size={36} />
           <h1 className="display">{task.name}</h1>
         </div>
 
-        <ProgressRing value={progress} size={280} stroke={14} color={task.color} className={`session-ring ${paused ? 'is-paused' : ''}`}>
+        <ProgressRing value={progress} size={270} stroke={10} color={task.color} className={`session-ring ${paused ? 'is-paused' : ''}`}>
           <div>
             <div className="display tabular session-clock">{clock}</div>
             <div className="small muted">
@@ -97,11 +96,14 @@ export function SessionPage() {
         </ProgressRing>
 
         {lastNextStep && (
-          <div className="card card-pad session-goal animate-in">
-            <div className="eyebrow row" style={{ '--gap': '6px' } as CSSProperties}>
-              <Target size={13} /> Prévu la dernière fois
+          <div className="group session-goal animate-in">
+            <div className="cell">
+              <Target size={18} className="muted" />
+              <div className="cell-body">
+                <div className="tiny muted">Prévu la dernière fois</div>
+                <div className="small">{lastNextStep}</div>
+              </div>
             </div>
-            <p>{lastNextStep}</p>
           </div>
         )}
       </div>

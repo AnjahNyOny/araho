@@ -1,20 +1,14 @@
 import type { CSSProperties, ReactNode } from 'react'
 import type { Task } from '../db/types'
 import { WEEK_ORDER, WEEKDAY_LETTERS, WEEKDAY_NAMES } from '../lib/date'
+import { TaskGlyph } from './TaskGlyph'
 
-/* ---------- Icône de tâche (pastille colorée + emoji) ---------- */
-export function TaskIcon({ task, size = 40 }: { task: Pick<Task, 'icon' | 'color'>; size?: number }) {
-  return (
-    <span
-      className="task-icon"
-      style={{ '--c': task.color, width: size, height: size, fontSize: size * 0.5 } as CSSProperties}
-    >
-      {task.icon}
-    </span>
-  )
+/* ---------- Icône de tâche ---------- */
+export function TaskIcon({ task, size = 30 }: { task: Pick<Task, 'icon' | 'color'>; size?: number }) {
+  return <TaskGlyph icon={task.icon} color={task.color} size={size} />
 }
 
-/* ---------- En-tête de page ---------- */
+/* ---------- En-tête de page (grand titre iOS) ---------- */
 export function PageHeader({
   eyebrow,
   title,
@@ -27,11 +21,37 @@ export function PageHeader({
   return (
     <header className="page-header">
       <div className="grow">
-        {eyebrow && <div className="eyebrow">{eyebrow}</div>}
+        {eyebrow && <div className="caption">{eyebrow}</div>}
         <h1 className="page-title">{title}</h1>
       </div>
-      {actions && <div className="row" style={{ '--gap': '6px' } as CSSProperties}>{actions}</div>}
+      {actions && <div className="page-actions">{actions}</div>}
     </header>
+  )
+}
+
+/* ---------- Section de liste groupée ---------- */
+export function Section({
+  title,
+  footer,
+  children,
+  action,
+}: {
+  title?: ReactNode
+  footer?: ReactNode
+  children: ReactNode
+  action?: ReactNode
+}) {
+  return (
+    <section className="section">
+      {(title || action) && (
+        <div className="row spread" style={{ paddingRight: 16 }}>
+          <div className="group-title">{title}</div>
+          {action}
+        </div>
+      )}
+      <div className="group">{children}</div>
+      {footer && <div className="group-footer">{footer}</div>}
+    </section>
   )
 }
 
@@ -48,7 +68,7 @@ export function EmptyState({
   action?: ReactNode
 }) {
   return (
-    <div className="empty card animate-in">
+    <div className="empty animate-in">
       <div className="empty-icon">{icon}</div>
       <h3>{title}</h3>
       {text && <p className="muted">{text}</p>}
@@ -73,6 +93,7 @@ export function DurationPicker({
 }) {
   const options = allowNone ? [0, ...DURATIONS] : DURATIONS
   const isCustom = !options.includes(value)
+  const label = (d: number) => (d === 0 ? 'Aucun' : d < 60 ? `${d} min` : d % 60 ? `${Math.floor(d / 60)}h30` : `${d / 60} h`)
   return (
     <div className="stack" style={{ '--gap': '10px' } as CSSProperties}>
       <div className="chips">
@@ -85,7 +106,7 @@ export function DurationPicker({
             aria-pressed={value === d}
             onClick={() => onChange(d)}
           >
-            {d === 0 ? 'Aucun' : d < 60 ? `${d} min` : `${d / 60}h`.replace('.5h', 'h30')}
+            {label(d)}
           </button>
         ))}
       </div>
@@ -94,7 +115,7 @@ export function DurationPicker({
         <input
           id={`${idPrefix}-custom`}
           className="input"
-          style={{ width: 90, padding: '8px 10px' }}
+          style={{ width: 84, padding: '7px 10px', fontSize: 15 }}
           type="number"
           inputMode="numeric"
           min={allowNone ? 0 : 5}
@@ -169,7 +190,7 @@ export function DaysPicker({
   )
 }
 
-/* ---------- Note de confiance ---------- */
+/* ---------- Niveau de compréhension ---------- */
 export const CONFIDENCE_LABELS = ['', 'Flou', 'Hésitant', 'Correct', 'À l’aise', 'Maîtrisé']
 
 export function ConfidenceDots({ value }: { value: number }) {

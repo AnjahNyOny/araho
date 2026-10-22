@@ -38,6 +38,16 @@ export function weekDates(s: ISODate): ISODate[] {
   return Array.from({ length: 7 }, (_, i) => addDays(start, i))
 }
 
+/** Dimanche de la semaine contenant `s` (comme sur Calendrier iOS). */
+export function startOfWeekSunday(s: ISODate): ISODate {
+  return addDays(s, -dayOfWeek(s))
+}
+
+export function weekDatesSunday(s: ISODate): ISODate[] {
+  const start = startOfWeekSunday(s)
+  return Array.from({ length: 7 }, (_, i) => addDays(start, i))
+}
+
 export function daysBetween(a: ISODate, b: ISODate): number {
   return Math.round((parseISODate(b).getTime() - parseISODate(a).getTime()) / 86_400_000)
 }
@@ -94,6 +104,20 @@ export function formatWeekday(s: ISODate): string {
 
 export function formatDayMonth(s: ISODate): string {
   return fmtDayMonth.format(parseISODate(s)).replace('.', '')
+}
+
+export function formatMonthName(s: ISODate): string {
+  const m = new Intl.DateTimeFormat('fr-FR', { month: 'long' }).format(parseISODate(s))
+  return capitalize(m)
+}
+
+export function formatCalendarHeader(s: ISODate): string {
+  const d = parseISODate(s)
+  const weekday = capitalize(new Intl.DateTimeFormat('fr-FR', { weekday: 'long' }).format(d))
+  const day = d.getDate()
+  const month = new Intl.DateTimeFormat('fr-FR', { month: 'short' }).format(d).replace('.', '')
+  const year = d.getFullYear()
+  return `${weekday} - ${day} ${month}. ${year}`
 }
 
 export function relativeDayLabel(s: ISODate): string {

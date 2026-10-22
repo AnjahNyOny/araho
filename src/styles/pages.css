@@ -2,9 +2,13 @@
    Pages — style iOS natif
    ========================================================================== */
 
-/* Séparateurs : alignés sur le texte quand une icône de 34px est présente */
+/* Séparateurs : alignés sur le texte quand une icône de 34px ou un squircle est présent */
 .cell.has-icon + .cell.has-icon::before {
   left: 62px;
+}
+
+.cell:has(.settings-icon) + .cell:has(.settings-icon)::before {
+  left: 58px;
 }
 
 .pad {
@@ -56,6 +60,339 @@
   flex-direction: column;
   gap: var(--s-1);
   margin: 0 4px var(--s-3);
+}
+
+.week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 8px 6px;
+  background: var(--bg-cell);
+  border-radius: var(--r-group);
+  margin: 0 0 var(--s-3);
+}
+
+.week-strip-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  border-radius: 8px;
+  color: var(--label-2);
+  outline: none !important;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.week-strip-letter {
+  font-size: 11px;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.week-strip-num {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label);
+  width: 26px;
+  height: 26px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+}
+
+.week-strip-item.is-today .week-strip-num {
+  background: var(--accent);
+  color: #fff;
+}
+
+.week-strip-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.week-strip-dot.is-planned {
+  background: var(--label-3);
+}
+
+.week-strip-dot.is-done {
+  background: var(--sys-green);
+}
+
+.week-empty-day {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 16px 12px;
+  color: var(--label-3);
+}
+
+/* ===================== Vue Calendrier Apple ===================== */
+.cal-container {
+  margin: -4px -16px 0;
+  display: flex;
+  flex-direction: column;
+}
+
+@media (min-width: 900px) {
+  .cal-container {
+    margin: -16px -40px 0;
+  }
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 12px 8px;
+}
+
+.cal-month-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--sys-red);
+  padding: 4px 6px;
+  margin-left: -6px;
+  border-radius: 8px;
+  transition: opacity 120ms var(--ease);
+}
+
+.cal-month-btn:active {
+  opacity: 0.5;
+}
+
+.cal-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-action-btn {
+  display: grid;
+  place-items: center;
+  width: 36px;
+  height: 36px;
+  color: var(--sys-red);
+  border-radius: 50%;
+  transition: opacity 120ms var(--ease);
+}
+
+.cal-action-btn:active {
+  opacity: 0.5;
+}
+
+.cal-action-btn.is-active {
+  background: color-mix(in srgb, var(--sys-red) 15%, transparent);
+}
+
+/* Bandeau 7 jours de la semaine */
+.cal-week-strip {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  padding: 4px 8px 10px;
+  border-bottom: 0.5px solid var(--separator);
+}
+
+.cal-day-cell {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 4px 0;
+  outline: none !important;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  cursor: pointer;
+}
+
+.cal-day-letter {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--label-3);
+  text-transform: uppercase;
+}
+
+.cal-day-num {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  font-weight: 500;
+  color: var(--label);
+  transition: all 150ms var(--ease);
+}
+
+.cal-day-cell.is-selected .cal-day-num {
+  background: var(--sys-red);
+  color: #fff;
+  font-weight: 600;
+}
+
+.cal-day-dot {
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  background: transparent;
+}
+
+.cal-day-dot.has-events {
+  background: var(--label-3);
+}
+
+.cal-day-cell.is-selected .cal-day-dot.has-events {
+  background: var(--sys-red);
+}
+
+/* Sous-titre centré : Jeudi - 22 oct. 2026 */
+.cal-day-title {
+  text-align: center;
+  padding: 9px 16px;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--label);
+  border-bottom: 0.5px solid var(--separator);
+  background: var(--bg);
+}
+
+/* Timeline journalière */
+.cal-timeline-wrap {
+  position: relative;
+  overflow-y: auto;
+  height: calc(100dvh - var(--tabbar-h) - var(--safe-bottom) - 180px);
+  min-height: 480px;
+}
+
+.cal-timeline {
+  position: relative;
+  height: calc(19 * 60px); /* 05:00 à 23:00 = 19h * 60px */
+}
+
+.cal-hour-row {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 60px;
+  display: flex;
+}
+
+.cal-hour-label {
+  width: 52px;
+  flex-shrink: 0;
+  padding-right: 12px;
+  text-align: right;
+  font-size: 11px;
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+  transform: translateY(-7px);
+}
+
+.cal-hour-line {
+  flex: 1;
+  height: 0.5px;
+  background: var(--separator);
+}
+
+/* Événements sur la timeline */
+.cal-event {
+  position: absolute;
+  left: 58px;
+  right: 12px;
+  border-radius: 6px;
+  padding: 4px 8px;
+  background: color-mix(in srgb, var(--c, var(--accent)) 18%, var(--bg-cell));
+  border-left: 3.5px solid var(--c, var(--accent));
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 1px;
+  z-index: 5;
+  cursor: pointer;
+  transition: opacity 120ms var(--ease);
+}
+
+.cal-event:active {
+  opacity: 0.7;
+}
+
+.cal-event-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--label);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cal-event-time {
+  font-size: 11px;
+  color: var(--label-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-event-check {
+  position: absolute;
+  right: 8px;
+  top: 6px;
+  color: var(--sys-blue);
+}
+
+/* Ligne temps réel style Apple */
+.cal-now-line {
+  position: absolute;
+  left: 52px;
+  right: 0;
+  height: 1.5px;
+  background: var(--sys-red);
+  z-index: 15;
+  pointer-events: none;
+}
+
+.cal-now-badge {
+  position: absolute;
+  left: 4px;
+  top: -8px;
+  background: var(--sys-red);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-variant-numeric: tabular-nums;
+  z-index: 16;
+}
+
+/* Bouton pilule Aujourd'hui flottant */
+.cal-today-pill {
+  position: fixed;
+  bottom: calc(var(--tabbar-h) + var(--safe-bottom) + 14px);
+  left: 20px;
+  z-index: 35;
+  height: 38px;
+  padding: 0 16px;
+  background: var(--bg-cell);
+  border: 0.5px solid var(--separator);
+  border-radius: 999px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--label);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  transition: transform 120ms var(--ease), opacity 120ms var(--ease);
+}
+
+.cal-today-pill:active {
+  transform: scale(0.96);
+  opacity: 0.8;
 }
 
 .now-marker {
@@ -252,50 +589,84 @@
 }
 
 /* ---------- Détail tâche ---------- */
+.task-hero {
+  margin-bottom: var(--s-3);
+  padding: 0 4px;
+}
+
+.task-hero-badge {
+  margin-bottom: var(--s-1);
+}
+
+.task-hero-title {
+  font-size: var(--fs-large-title);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.15;
+  margin-top: 4px;
+}
+
+.task-hero-desc {
+  margin-top: 6px;
+  font-size: var(--fs-body);
+  color: var(--label-2);
+  line-height: 1.4;
+}
+
 .history {
   display: grid;
   grid-template-columns: repeat(21, 1fr);
-  gap: 4px;
-  height: 120px;
+  gap: 3px;
+  height: 130px;
   align-items: end;
   position: relative;
+  padding-bottom: 2px;
 }
 
 .history-goal {
   position: absolute;
   left: 0;
   right: 0;
-  bottom: calc(var(--goal, 0.5) * 92px + 20px);
+  bottom: calc(var(--goal, 0.5) * 96px + 22px);
   border-top: 1px dashed var(--label-3);
   pointer-events: none;
+  z-index: 1;
 }
 
 .history-col {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   height: 100%;
   justify-content: flex-end;
 }
 
 .history-bar-wrap {
   width: 100%;
-  height: 92px;
+  height: 96px;
   display: flex;
   align-items: flex-end;
+  background: var(--fill);
+  border-radius: 3px;
 }
 
 .history-bar {
   width: 100%;
   min-height: 2px;
-  background: var(--c, var(--accent));
+  background: transparent;
   border-radius: 3px;
+  transition: height 200ms ease;
+}
+
+.history-bar.is-active {
+  background: var(--c, var(--accent));
 }
 
 .history-label {
   font-size: 10px;
-  color: var(--label-2);
+  color: var(--label-3);
+  font-weight: 500;
 }
 
 .history-label.is-today {

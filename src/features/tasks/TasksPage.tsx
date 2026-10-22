@@ -49,17 +49,19 @@ export function TasksPage() {
         </div>
       )}
 
-      <div className="group-footer" style={{ marginTop: 14 }}>
-        <label className="row" style={{ gap: 10 }}>
-          <input
-            id="tasks-toggle-archived"
-            type="checkbox"
-            className="switch"
-            checked={showArchived}
-            onChange={(e) => setShowArchived(e.target.checked)}
-          />
-          <span>Afficher les tâches archivées</span>
-        </label>
+      <div className="section" style={{ marginTop: 24 }}>
+        <div className="group">
+          <label className="cell" htmlFor="tasks-toggle-archived" style={{ cursor: 'pointer' }}>
+            <span className="cell-body">Afficher les tâches archivées</span>
+            <input
+              id="tasks-toggle-archived"
+              type="checkbox"
+              className="switch"
+              checked={showArchived}
+              onChange={(e) => setShowArchived(e.target.checked)}
+            />
+          </label>
+        </div>
       </div>
 
       <TaskFormSheet open={creating} onClose={() => setCreating(false)} />

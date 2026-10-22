@@ -43,6 +43,15 @@
   font-size: 10px;
   font-weight: 500;
   color: var(--label-2);
+  outline: none !important;
+  -webkit-tap-highlight-color: transparent;
+  user-select: none;
+}
+
+.tab:focus,
+.tab:focus-visible,
+.tab:active {
+  outline: none !important;
 }
 
 .tab.active {
@@ -192,11 +201,9 @@
   color: var(--accent);
 }
 
-.tab:focus-visible,
 .side-link:focus-visible,
 .date-nav-btn:focus-visible {
-  outline-offset: -3px;
-  border-radius: 10px;
+  outline: none;
 }
 
 /* ===================== Icône de tâche ===================== */
@@ -206,6 +213,17 @@
   flex-shrink: 0;
   background: var(--c);
   color: #fff;
+}
+
+/* Squircle d’icône Réglages iOS (30x30, rayon 7px, pictogramme blanc) */
+.settings-icon {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  color: #fff;
+  flex-shrink: 0;
 }
 
 /* ===================== Anneau ===================== */

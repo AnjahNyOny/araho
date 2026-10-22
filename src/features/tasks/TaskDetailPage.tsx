@@ -38,12 +38,13 @@ export function TaskDetailPage() {
     navigate('/session')
   }
 
-  const maxBar = Math.max(task.dailyGoalMin, ...(stats?.history.map((h) => h.min) ?? [0]), 1)
+  const recordedMax = Math.max(...(stats?.history.map((h) => h.min) ?? [0]), 1)
+  const maxBar = Math.max(task.dailyGoalMin > 0 ? task.dailyGoalMin * 1.3 : 0, recordedMax, 30)
   const since = daysBetween(task.startDate, today())
 
   return (
     <div style={{ '--c': task.color } as CSSProperties}>
-      <header className="row spread" style={{ marginBottom: 4 }}>
+      <header className="row spread" style={{ marginBottom: 12 }}>
         <button className="btn btn-ghost" onClick={() => navigate('/tasks')} id="task-back" style={{ paddingLeft: 0 }}>
           <ChevronLeft size={24} style={{ marginRight: -4 }} /> Tâches
         </button>
@@ -52,19 +53,19 @@ export function TaskDetailPage() {
         </button>
       </header>
 
-      <div className="page-header">
-        <div className="grow">
-          <div className="caption">
-            {task.dailyGoalMin ? `${formatDuration(task.dailyGoalMin)} / jour · ` : ''}
-            {since === 0 ? 'depuis aujourd’hui' : `depuis ${since} jour${since > 1 ? 's' : ''}`}
-          </div>
-          <h1 className="page-title">{task.name}</h1>
-          {task.description && <p className="muted" style={{ marginTop: 2 }}>{task.description}</p>}
+      <div className="task-hero">
+        <div className="task-hero-badge">
+          <TaskIcon task={task} size={52} />
         </div>
-        <TaskIcon task={task} size={52} />
+        <div className="caption">
+          {task.dailyGoalMin ? `${formatDuration(task.dailyGoalMin)} / jour · ` : ''}
+          {since === 0 ? 'depuis aujourd’hui' : `depuis ${since} jour${since > 1 ? 's' : ''}`}
+        </div>
+        <h1 className="task-hero-title">{task.name}</h1>
+        {task.description && <p className="task-hero-desc">{task.description}</p>}
       </div>
 
-      <div className="section">
+      <div className="section" style={{ marginBottom: 28 }}>
         <button className="btn btn-primary btn-lg btn-block" onClick={start} id="task-start">
           <Play size={17} fill="currentColor" /> {active?.taskId === task.id ? 'Reprendre la session' : 'Démarrer une session'}
         </button>
@@ -99,7 +100,10 @@ export function TaskDetailPage() {
               {stats.history.map((h) => (
                 <div key={h.date} className="history-col" title={`${formatDayMonth(h.date)} : ${formatDuration(h.min)}`}>
                   <div className="history-bar-wrap">
-                    <div className="history-bar" style={{ height: `${(h.min / maxBar) * 100}%` }} />
+                    <div
+                      className={`history-bar ${h.min > 0 ? 'is-active' : ''}`}
+                      style={{ height: h.min > 0 ? `${Math.max(6, (h.min / maxBar) * 100)}%` : '2px' }}
+                    />
                   </div>
                   <span className={`history-label ${h.date === today() ? 'is-today' : ''}`}>
                     {formatWeekday(h.date).charAt(0)}

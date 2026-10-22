@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Download, Upload, Trash2, Sparkles } from 'lucide-react'
+import { Download, Upload, Trash2, Sparkles, ChevronRight } from 'lucide-react'
 import { PageHeader, Section } from '../../components/ui'
 import { exportAll, importAll, wipeAll, createTask, addSlot, logManualSession, saveNote } from '../../db/repo'
 import { today } from '../../lib/date'
@@ -146,25 +146,36 @@ export function SettingsPage() {
         title="Données"
         footer="Tes données restent sur cet appareil (IndexedDB). La synchronisation avec ton serveur arrivera dans une prochaine phase."
       >
-        <button className="cell is-accent" onClick={handleExport} id="settings-export">
-          <Download size={20} />
+        <button className="cell" onClick={handleExport} id="settings-export">
+          <div className="settings-icon" style={{ background: 'var(--sys-blue)' }}>
+            <Download size={16} strokeWidth={2.4} />
+          </div>
           <span className="cell-body">Exporter une sauvegarde</span>
+          <ChevronRight size={18} className="cell-chevron" />
         </button>
-        <label className="cell is-accent" id="settings-import-label" style={{ cursor: 'pointer' }}>
-          <Upload size={20} />
+        <label className="cell" id="settings-import-label" style={{ cursor: 'pointer' }}>
+          <div className="settings-icon" style={{ background: 'var(--sys-indigo)' }}>
+            <Upload size={16} strokeWidth={2.4} />
+          </div>
           <span className="cell-body">Importer une sauvegarde</span>
+          <ChevronRight size={18} className="cell-chevron" />
           <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} id="settings-import" />
         </label>
       </Section>
 
       <Section title="Outils">
-        <button className="cell is-accent" onClick={handleLoadDemo} disabled={loading} id="settings-load-demo">
-          <Sparkles size={20} />
+        <button className="cell" onClick={handleLoadDemo} disabled={loading} id="settings-load-demo">
+          <div className="settings-icon" style={{ background: 'var(--sys-purple)' }}>
+            <Sparkles size={16} strokeWidth={2.4} />
+          </div>
           <span className="cell-body">Charger des données d’exemple</span>
+          <ChevronRight size={18} className="cell-chevron" />
         </button>
-        <button className="cell is-danger" onClick={handleWipe} disabled={loading} id="settings-wipe">
-          <Trash2 size={20} />
-          <span className="cell-body">Effacer toutes les données</span>
+        <button className="cell" onClick={handleWipe} disabled={loading} id="settings-wipe">
+          <div className="settings-icon" style={{ background: 'var(--sys-red)' }}>
+            <Trash2 size={16} strokeWidth={2.4} />
+          </div>
+          <span className="cell-body" style={{ color: 'var(--sys-red)' }}>Effacer toutes les données</span>
         </button>
       </Section>
     </>

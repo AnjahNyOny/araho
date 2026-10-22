@@ -11,16 +11,18 @@ interface Props {
   onClose: () => void
   date: ISODate
   taskId?: string
+  initialStartMin?: number
   onNeedTask?: () => void
 }
 
-function defaultStart(date: ISODate): string {
+function defaultStart(date: ISODate, initialMin?: number): string {
+  if (initialMin !== undefined) return minutesToTime(initialMin)
   if (date !== today()) return '09:00'
   const m = Math.ceil((nowMinutes() + 5) / 30) * 30
   return minutesToTime(Math.min(m, 23 * 60))
 }
 
-export function AddSlotSheet({ open, onClose, date, taskId, onNeedTask }: Props) {
+export function AddSlotSheet({ open, onClose, date, taskId, initialStartMin, onNeedTask }: Props) {
   const tasks = useTasks()
   const [selected, setSelected] = useState<string | undefined>(taskId)
   const [day, setDay] = useState<ISODate>(date)
@@ -33,10 +35,10 @@ export function AddSlotSheet({ open, onClose, date, taskId, onNeedTask }: Props)
     if (!open) return
     setSelected(taskId)
     setDay(date)
-    setTime(defaultStart(date))
+    setTime(defaultStart(date, initialStartMin))
     setRepeat(false)
     setDays([dayOfWeek(date)])
-  }, [open, date, taskId])
+  }, [open, date, taskId, initialStartMin])
 
   // Pré-remplit la durée avec l'objectif de la tâche choisie
   useEffect(() => {

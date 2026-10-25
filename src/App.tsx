@@ -8,6 +8,7 @@ import { JournalPage } from './features/journal/JournalPage'
 import { SettingsPage } from './features/settings/SettingsPage'
 import { SessionPage } from './features/session/SessionPage'
 import { NotePage } from './features/session/NotePage'
+import { SharedSchedulePage } from './features/share/SharedSchedulePage'
 
 export function App() {
   return (
@@ -15,6 +16,9 @@ export function App() {
       <Routes>
         {/* Session en cours : plein écran sans barre de navigation */}
         <Route path="/session" element={<SessionPage />} />
+
+        {/* Vue publique partagée (ex: petite amie) sans navigation privée */}
+        <Route path="/share/:token" element={<SharedSchedulePage />} />
 
         {/* Application principale avec Shell (sidebar sur Mac, tabs sur iPhone) */}
         <Route element={<AppShell />}>

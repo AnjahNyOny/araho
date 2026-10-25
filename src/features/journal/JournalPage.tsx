@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
-import { Search, BookText } from 'lucide-react'
+import { Search, BookText, FileDown, Brain } from 'lucide-react'
 import { PageHeader, EmptyState } from '../../components/ui'
 import { useNotes, useSessions, useTasks } from '../../db/hooks'
+import { exportNotesToMarkdown } from '../../lib/exportMarkdown'
+import { getDueNotes } from '../../lib/spacedRepetition'
+import { SpacedReviewSheet } from './SpacedReviewSheet'
 import { NoteCard } from './NoteCard'
 
 export function JournalPage() {
@@ -12,7 +15,9 @@ export function JournalPage() {
   const [search, setSearch] = useState('')
   const [selectedTaskId, setSelectedTaskId] = useState<string>('all')
   const [selectedTag, setSelectedTag] = useState<string>('all')
+  const [reviewOpen, setReviewOpen] = useState(false)
 
+  const dueNotes = useMemo(() => (notes ? getDueNotes(notes) : []), [notes])
   const sessionMap = useMemo(() => new Map((sessions ?? []).map((s) => [s.id, s])), [sessions])
 
   const allTags = useMemo(() => {
@@ -39,7 +44,40 @@ export function JournalPage() {
 
   return (
     <>
-      <PageHeader eyebrow={`${filteredNotes.length} note${filteredNotes.length > 1 ? 's' : ''}`} title="Journal" />
+      <PageHeader
+        eyebrow={`${filteredNotes.length} note${filteredNotes.length > 1 ? 's' : ''}`}
+        title="Journal"
+        actions={
+          <div className="row" style={{ gap: 6 }}>
+            {dueNotes.length > 0 && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => setReviewOpen(true)}
+                title="Lancer une révision espacée"
+                id="journal-spaced-btn"
+                style={{ color: 'var(--sys-purple)' }}
+              >
+                <Brain size={15} /> Réviser ({dueNotes.length})
+              </button>
+            )}
+            {filteredNotes.length > 0 && (
+              <button
+                className="btn btn-ghost btn-sm"
+                onClick={() => {
+                  const map = new Map((tasks ?? []).map((t) => [t.id, t]))
+                  const taskObj = selectedTaskId !== 'all' ? tasks?.find((t) => t.id === selectedTaskId) : undefined
+                  const sub = taskObj ? ` — ${taskObj.name}` : ''
+                  exportNotesToMarkdown(filteredNotes, map, `Journal${sub}`)
+                }}
+                title="Exporter les notes en Markdown (.md)"
+                id="export-journal-md"
+              >
+                <FileDown size={15} /> Exporter .md
+              </button>
+            )}
+          </div>
+        }
+      />
 
       <div className="search-box">
         <Search size={17} className="muted" />
@@ -106,6 +144,15 @@ export function JournalPage() {
             <NoteCard key={note.id} note={note} session={sessionMap.get(note.sessionId)} showTask />
           ))}
         </div>
+      )}
+
+      {tasks && (
+        <SpacedReviewSheet
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          notes={dueNotes}
+          tasksMap={new Map((tasks ?? []).map((t) => [t.id, t]))}
+        />
       )}
     </>
   )

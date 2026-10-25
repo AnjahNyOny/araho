@@ -7,6 +7,8 @@ import { TaskIcon } from '../../components/ui'
 import { useActiveSession, useNow, useTask } from '../../db/hooks'
 import * as repo from '../../db/repo'
 import { formatClock, formatDuration } from '../../lib/date'
+import { playCompletionChime, notifySessionComplete, requestNotificationPermission } from '../../lib/sound'
+import { useRef } from 'react'
 
 export function SessionPage() {
   const session = useActiveSession()
@@ -14,6 +16,7 @@ export function SessionPage() {
   const now = useNow(1000)
   const navigate = useNavigate()
   const [busy, setBusy] = useState(false)
+  const hasAlertedRef = useRef(false)
   const lastNextStep = useLiveQuery(
     () => (session ? repo.getLastNextStep(session.taskId) : ''),
     [session?.taskId],
@@ -41,6 +44,22 @@ export function SessionPage() {
   const progress = ms / plannedMs
   const reached = progress >= 1
   const paused = !!session.pausedAt
+
+  // Demande permission notification au montage
+  useEffect(() => {
+    requestNotificationPermission()
+  }, [])
+
+  // Déclenche le carillon et la notification une seule fois à la fin du temps imparti
+  useEffect(() => {
+    if (reached && !hasAlertedRef.current && !paused) {
+      hasAlertedRef.current = true
+      playCompletionChime()
+      if (task) {
+        notifySessionComplete(task.name, session.plannedMin)
+      }
+    }
+  }, [reached, paused, task, session.plannedMin])
 
   const finish = async () => {
     setBusy(true)
@@ -94,6 +113,12 @@ export function SessionPage() {
             </div>
           </div>
         </ProgressRing>
+
+        {reached && (
+          <div className="status-banner success animate-in" style={{ marginTop: 4, maxWidth: 360, textAlign: 'center' }}>
+            <span>Objectif atteint ! Prends un instant pour documenter ce que tu as appris.</span>
+          </div>
+        )}
 
         {lastNextStep && (
           <div className="group session-goal animate-in">

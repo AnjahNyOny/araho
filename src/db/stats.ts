@@ -70,3 +70,98 @@ export function computeTaskStats(
     }),
   }
 }
+
+export interface WeeklyReviewStats {
+  weekDays: ISODate[]
+  previousWeekDates: ISODate[]
+  totalMin: number
+  previousTotalMin: number
+  diffMin: number
+  diffPercent: number | null
+  activeDaysCount: number
+  avgDailyMin: number
+  mostProductiveDay: { date: ISODate; min: number } | null
+  sessionsCount: number
+  notesCount: number
+  avgConfidence: number
+  dailyBreakdown: { date: ISODate; min: number; previousMin: number }[]
+  taskBreakdown: { taskId: string; min: number; percent: number }[]
+}
+
+export function computeWeeklyReview(
+  allSessions: Session[],
+  allNotes: Note[],
+  weekDays: ISODate[],
+): WeeklyReviewStats {
+  const currentWeekSet = new Set(weekDays)
+  const previousWeekDates = weekDays.map((d) => addDays(d, -7))
+  const previousWeekSet = new Set(previousWeekDates)
+
+  const currentSessions = allSessions.filter((s) => currentWeekSet.has(s.date))
+  const previousSessions = allSessions.filter((s) => previousWeekSet.has(s.date))
+
+  const totalMin = currentSessions.reduce((acc, s) => acc + s.durationMin, 0)
+  const previousTotalMin = previousSessions.reduce((acc, s) => acc + s.durationMin, 0)
+  const diffMin = totalMin - previousTotalMin
+  const diffPercent =
+    previousTotalMin > 0 ? Math.round(((totalMin - previousTotalMin) / previousTotalMin) * 100) : null
+
+  // Par jour
+  const currentByDate = minutesByDate(currentSessions)
+  const previousByDate = minutesByDate(previousSessions)
+
+  const dailyBreakdown = weekDays.map((date, idx) => ({
+    date,
+    min: currentByDate.get(date) ?? 0,
+    previousMin: previousByDate.get(previousWeekDates[idx]) ?? 0,
+  }))
+
+  const activeDaysCount = dailyBreakdown.filter((d) => d.min > 0).length
+  const avgDailyMin = activeDaysCount > 0 ? Math.round(totalMin / activeDaysCount) : 0
+
+  let mostProductiveDay: { date: ISODate; min: number } | null = null
+  for (const d of dailyBreakdown) {
+    if (d.min > 0 && (!mostProductiveDay || d.min > mostProductiveDay.min)) {
+      mostProductiveDay = { date: d.date, min: d.min }
+    }
+  }
+
+  // Par tâche
+  const taskMinutes = new Map<string, number>()
+  for (const s of currentSessions) {
+    taskMinutes.set(s.taskId, (taskMinutes.get(s.taskId) ?? 0) + s.durationMin)
+  }
+
+  const taskBreakdown = Array.from(taskMinutes.entries())
+    .map(([taskId, min]) => ({
+      taskId,
+      min,
+      percent: totalMin > 0 ? Math.round((min / totalMin) * 100) : 0,
+    }))
+    .sort((a, b) => b.min - a.min)
+
+  // Notes de la semaine
+  const currentNotes = allNotes.filter((n) => currentWeekSet.has(n.date))
+  const ratedNotes = currentNotes.filter((n) => n.confidence > 0)
+  const avgConfidence =
+    ratedNotes.length > 0
+      ? ratedNotes.reduce((acc, n) => acc + n.confidence, 0) / ratedNotes.length
+      : 0
+
+  return {
+    weekDays,
+    previousWeekDates,
+    totalMin,
+    previousTotalMin,
+    diffMin,
+    diffPercent,
+    activeDaysCount,
+    avgDailyMin,
+    mostProductiveDay,
+    sessionsCount: currentSessions.length,
+    notesCount: currentNotes.length,
+    avgConfidence,
+    dailyBreakdown,
+    taskBreakdown,
+  }
+}

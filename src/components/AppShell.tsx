@@ -5,6 +5,10 @@ import { useActiveSession, useNow, useTaskMap } from '../db/hooks'
 import { elapsedMs } from '../db/repo'
 import { formatClock } from '../lib/date'
 import { TaskIcon } from './ui'
+import { useAuth } from '../lib/supabase'
+import { syncAll } from '../db/sync'
+import { useSlotReminders } from '../lib/reminders'
+import { useEffect } from 'react'
 
 const NAV = [
   { to: '/', label: "Aujourd'hui", icon: CalendarDays, end: true, id: 'nav-today' },
@@ -16,6 +20,37 @@ const NAV = [
 export function AppShell() {
   const session = useActiveSession()
   const location = useLocation()
+  const { user } = useAuth()
+
+  // Rappels automatiques 5 min avant le début d'un créneau
+  useSlotReminders()
+
+  // Synchronisation automatique en tâche de fond multi-appareils dès qu'un compte est connecté
+  useEffect(() => {
+    if (!user) return
+
+    // Synchro immédiate à l'ouverture
+    syncAll(user.id)
+
+    // Synchro périodique (toutes les 45 secondes)
+    const interval = setInterval(() => {
+      syncAll(user.id)
+    }, 45_000)
+
+    // Synchro lors du retour sur l'onglet/l'app (sur Mac ou iPhone)
+    const onFocus = () => {
+      syncAll(user.id)
+    }
+    window.addEventListener('focus', onFocus)
+    document.addEventListener('visibilitychange', onFocus)
+
+    return () => {
+      clearInterval(interval)
+      window.removeEventListener('focus', onFocus)
+      document.removeEventListener('visibilitychange', onFocus)
+    }
+  }, [user])
+
   const hasDock = !!session && !location.pathname.startsWith('/session')
   return (
     <div className={`shell ${hasDock ? 'has-dock' : ''}`}>

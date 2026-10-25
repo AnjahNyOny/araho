@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Check, List, CalendarDays, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, Check, List, CalendarDays, Search, BarChart3 } from 'lucide-react'
 import { useNow, usePlan, useSessions, useTaskMap } from '../../db/hooks'
 import type { PlanItem } from '../../db/types'
 import {
@@ -16,11 +16,13 @@ import {
 } from '../../lib/date'
 import { AddSlotSheet } from '../planning/AddSlotSheet'
 import { SlotSheet } from '../planning/SlotSheet'
+import { WeeklyReviewSheet } from './WeeklyReviewSheet'
 import { TaskIcon } from '../../components/ui'
 
 const TIMELINE_START_HOUR = 5
 const TIMELINE_END_HOUR = 23
-const HOUR_HEIGHT = 60 // 60px par heure = 1px par minute
+const HOUR_HEIGHT = 64 // 64px par heure = 32px pour 30min
+const TIMELINE_TOP_PAD = 10
 
 const HOURS = Array.from(
   { length: TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1 },
@@ -33,6 +35,7 @@ export function WeekPage() {
   const [viewMode, setViewMode] = useState<'timeline' | 'list'>('timeline')
   const [addingSlot, setAddingSlot] = useState<{ date: ISODate; startMin?: number } | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<PlanItem | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
 
   const timelineWrapRef = useRef<HTMLDivElement>(null)
 
@@ -57,7 +60,7 @@ export function WeekPage() {
   useEffect(() => {
     if (viewMode !== 'timeline' || !timelineWrapRef.current) return
     const targetMin = isToday ? nowMin : (currentDayItems[0]?.startMin ?? 8 * 60)
-    const targetPx = (targetMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
+    const targetPx = TIMELINE_TOP_PAD + (targetMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
     timelineWrapRef.current.scrollTo({
       top: Math.max(0, targetPx - 100),
       behavior: 'smooth',
@@ -65,7 +68,7 @@ export function WeekPage() {
   }, [selectedDate, viewMode])
 
   // Heure actuelle sur la timeline
-  const nowTopPx = (nowMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
+  const nowTopPx = TIMELINE_TOP_PAD + (nowMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
   const showNowLine =
     isToday &&
     nowMin >= TIMELINE_START_HOUR * 60 &&
@@ -105,6 +108,16 @@ export function WeekPage() {
             title={viewMode === 'timeline' ? 'Vue liste' : 'Vue calendrier'}
           >
             {viewMode === 'timeline' ? <List size={22} /> : <CalendarDays size={22} />}
+          </button>
+          <button
+            type="button"
+            className="cal-action-btn"
+            onClick={() => setReviewOpen(true)}
+            aria-label="Bilan hebdomadaire"
+            title="Bilan de la semaine"
+            id="cal-review-btn"
+          >
+            <BarChart3 size={21} />
           </button>
           <button
             type="button"
@@ -165,7 +178,10 @@ export function WeekPage() {
       {/* 4. Vue Timeline horaire ou Vue Liste */}
       {viewMode === 'timeline' ? (
         <div className="cal-timeline-wrap" ref={timelineWrapRef}>
-          <div className="cal-timeline">
+          <div
+            className="cal-timeline"
+            style={{ height: TIMELINE_TOP_PAD + (TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1) * HOUR_HEIGHT + 40 }}
+          >
             {/* Lignes d'heures */}
             {HOURS.map((h) => {
               const startMinutes = h * 60
@@ -173,7 +189,7 @@ export function WeekPage() {
                 <div
                   key={h}
                   className="cal-hour-row"
-                  style={{ top: (h - TIMELINE_START_HOUR) * HOUR_HEIGHT }}
+                  style={{ top: TIMELINE_TOP_PAD + (h - TIMELINE_START_HOUR) * HOUR_HEIGHT }}
                   onClick={() => setAddingSlot({ date: selectedDate, startMin: startMinutes })}
                   title={`Cliquer pour ajouter à ${String(h).padStart(2, '0')}:00`}
                 >
@@ -195,15 +211,16 @@ export function WeekPage() {
               const task = tasks?.get(item.taskId)
               if (!task) return null
 
-              const top = (item.startMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
-              const height = Math.max(26, item.durationMin * (HOUR_HEIGHT / 60) - 2)
+              const top = TIMELINE_TOP_PAD + (item.startMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
+              const isCompact = item.durationMin <= 35
+              const height = Math.max(isCompact ? 28 : 46, item.durationMin * (HOUR_HEIGHT / 60) - 2)
               const done = item.status === 'done'
               const skipped = item.status === 'skipped'
 
               return (
                 <div
                   key={item.key}
-                  className="cal-event"
+                  className={`cal-event ${isCompact ? 'is-compact' : 'is-standard'}`}
                   style={
                     {
                       '--c': task.color,
@@ -220,15 +237,34 @@ export function WeekPage() {
                   role="button"
                   tabIndex={0}
                 >
-                  <span className="cal-event-title">{task.name}</span>
-                  <span className="cal-event-time">
-                    {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
-                    {skipped ? ' · Sauté' : ''}
-                  </span>
-                  {done && (
-                    <span className="cal-event-check">
-                      <Check size={14} strokeWidth={3} />
-                    </span>
+                  {isCompact ? (
+                    <div className="cal-event-row">
+                      <span className="cal-event-title truncate">{task.name}</span>
+                      <span className="cal-event-bullet">·</span>
+                      <span className="cal-event-time">
+                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
+                      </span>
+                      {done && (
+                        <span className="cal-event-check">
+                          <Check size={13} strokeWidth={3} />
+                        </span>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="cal-event-stack">
+                      <div className="row spread" style={{ alignItems: 'flex-start' }}>
+                        <span className="cal-event-title truncate">{task.name}</span>
+                        {done && (
+                          <span className="cal-event-check">
+                            <Check size={14} strokeWidth={3} />
+                          </span>
+                        )}
+                      </div>
+                      <span className="cal-event-time">
+                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
+                        {skipped ? ' · Sauté' : ''}
+                      </span>
+                    </div>
                   )}
                 </div>
               )
@@ -312,6 +348,11 @@ export function WeekPage() {
           onClose={() => setSelectedSlot(null)}
         />
       )}
+      <WeeklyReviewSheet
+        open={reviewOpen}
+        onClose={() => setReviewOpen(false)}
+        weekDays={weekDays}
+      />
     </div>
   )
 }

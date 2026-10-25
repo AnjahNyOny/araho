@@ -1,8 +1,8 @@
 import { Fragment, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, CalendarPlus, Play, Check, ListChecks } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Plus, CalendarPlus, Play, Check, ListChecks, Brain } from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
-import { useActiveSession, useDayPlan, useNow, useSessions, useTaskMap, useTasks } from '../../db/hooks'
+import { useActiveSession, useDayPlan, useNow, useSessions, useTaskMap, useTasks, useNotes } from '../../db/hooks'
 import { elapsedMs, startSession } from '../../db/repo'
 import type { PlanItem, Task } from '../../db/types'
 import {
@@ -15,9 +15,11 @@ import {
   relativeDayLabel,
   today,
 } from '../../lib/date'
+import { getDueNotes } from '../../lib/spacedRepetition'
 import { AddSlotSheet } from '../planning/AddSlotSheet'
 import { SlotSheet } from '../planning/SlotSheet'
 import { TaskFormSheet } from '../tasks/TaskFormSheet'
+import { SpacedReviewSheet } from '../journal/SpacedReviewSheet'
 
 export function TodayPage() {
   const [params, setParams] = useSearchParams()
@@ -30,11 +32,15 @@ export function TodayPage() {
   const taskList = useTasks()
   const active = useActiveSession()
   const sessions = useSessions({ dates: [date] })
+  const allNotes = useNotes()
   const now = useNow(active ? 1000 : 30_000)
 
   const [adding, setAdding] = useState(false)
   const [creatingTask, setCreatingTask] = useState(false)
   const [selected, setSelected] = useState<PlanItem | null>(null)
+  const [reviewOpen, setReviewOpen] = useState(false)
+
+  const dueNotes = useMemo(() => (allNotes ? getDueNotes(allNotes) : []), [allNotes])
 
   const setDate = (d: string) => setParams(d === today() ? {} : { d })
 
@@ -103,6 +109,37 @@ export function TodayPage() {
             </div>
           )}
 
+          {isToday && dueNotes.length > 0 && (
+            <div
+              className="cell animate-in"
+              style={{
+                background: 'var(--bg-cell)',
+                borderRadius: 'var(--r-cell)',
+                padding: '12px 16px',
+                marginBottom: 16,
+                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
+                cursor: 'pointer',
+              }}
+              onClick={() => setReviewOpen(true)}
+              id="today-spaced-card"
+            >
+              <div className="settings-icon" style={{ background: 'var(--sys-purple)' }}>
+                <Brain size={16} strokeWidth={2.4} />
+              </div>
+              <div className="cell-body">
+                <div className="cell-title">
+                  {dueNotes.length} apprentissage{dueNotes.length > 1 ? 's' : ''} à réviser
+                </div>
+                <div className="cell-sub">
+                  Ancrage mémoriel · ~2 min
+                </div>
+              </div>
+              <span className="chip chip-sm is-active" style={{ fontSize: 13 }}>
+                Réviser
+              </span>
+            </div>
+          )}
+
           <section aria-label="Créneaux du jour">
             {loading ? null : plan.length === 0 ? (
               <EmptyState
@@ -142,6 +179,14 @@ export function TodayPage() {
       <AddSlotSheet open={adding} onClose={() => setAdding(false)} date={date} onNeedTask={() => setCreatingTask(true)} />
       <SlotSheet item={selected} onClose={() => setSelected(null)} />
       <TaskFormSheet open={creatingTask} onClose={() => setCreatingTask(false)} />
+      {tasks && (
+        <SpacedReviewSheet
+          open={reviewOpen}
+          onClose={() => setReviewOpen(false)}
+          notes={dueNotes}
+          tasksMap={tasks}
+        />
+      )}
     </>
   )
 }

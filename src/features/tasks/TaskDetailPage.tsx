@@ -1,9 +1,10 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Play, Pencil, Archive, ArchiveRestore, Trash2, Repeat, Plus, BookOpen } from 'lucide-react'
+import { ChevronLeft, Play, Pencil, Archive, ArchiveRestore, Trash2, Repeat, Plus, BookOpen, FileDown } from 'lucide-react'
 import { NoteCard } from '../journal/NoteCard'
 import { TaskIcon, EmptyState, Section } from '../../components/ui'
 import { useActiveSession, useNotes, useRecurrences, useSessions, useTask } from '../../db/hooks'
+import { exportNotesToMarkdown } from '../../lib/exportMarkdown'
 import * as repo from '../../db/repo'
 import { computeTaskStats } from '../../db/stats'
 import { daysBetween, describeDays, formatDayMonth, formatDuration, formatWeekday, minutesToTime, today } from '../../lib/date'
@@ -152,7 +153,19 @@ export function TaskDetailPage() {
       </Section>
 
       <section style={{ marginTop: 8 }} aria-label="Ce que j'ai appris">
-        <div className="group-title">Ce que j’ai appris · {notes?.length ?? 0}</div>
+        <div className="row spread" style={{ alignItems: 'baseline', marginBottom: 6 }}>
+          <div className="group-title" style={{ margin: 0 }}>Ce que j’ai appris · {notes?.length ?? 0}</div>
+          {notes && notes.length > 0 && (
+            <button
+              className="btn btn-ghost btn-sm"
+              onClick={() => exportNotesToMarkdown(notes, new Map([[task.id, task]]), `Journal — ${task.name}`)}
+              style={{ fontSize: 13 }}
+              id="task-export-md"
+            >
+              <FileDown size={14} /> Exporter .md
+            </button>
+          )}
+        </div>
         {notes && notes.length === 0 ? (
           <div className="group"><div className="cell"><span className="cell-body muted small">Tes notes de fin de session apparaîtront ici, comme un journal de ta progression.</span></div></div>
         ) : (

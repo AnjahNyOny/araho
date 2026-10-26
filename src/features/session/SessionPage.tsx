@@ -27,6 +27,11 @@ export function SessionPage() {
   const ms = session ? repo.elapsedMs(session, now) : 0
   const clock = formatClock(ms)
 
+  const plannedMs = session ? session.plannedMin * 60_000 : 0
+  const progress = plannedMs > 0 ? ms / plannedMs : 0
+  const reached = progress >= 1
+  const paused = !!session?.pausedAt
+
   useEffect(() => {
     if (!task) return
     const prev = document.title
@@ -36,15 +41,6 @@ export function SessionPage() {
     }
   }, [clock, task])
 
-  if (session === undefined) return null
-  if (session === null) return <Navigate to="/" replace />
-  if (!task) return null
-
-  const plannedMs = session.plannedMin * 60_000
-  const progress = ms / plannedMs
-  const reached = progress >= 1
-  const paused = !!session.pausedAt
-
   // Demande permission notification au montage
   useEffect(() => {
     requestNotificationPermission()
@@ -52,14 +48,16 @@ export function SessionPage() {
 
   // Déclenche le carillon et la notification une seule fois à la fin du temps imparti
   useEffect(() => {
-    if (reached && !hasAlertedRef.current && !paused) {
+    if (reached && !hasAlertedRef.current && !paused && session && task) {
       hasAlertedRef.current = true
       playCompletionChime()
-      if (task) {
-        notifySessionComplete(task.name, session.plannedMin)
-      }
+      notifySessionComplete(task.name, session.plannedMin)
     }
-  }, [reached, paused, task, session.plannedMin])
+  }, [reached, paused, task, session])
+
+  if (session === undefined) return null
+  if (session === null) return <Navigate to="/" replace />
+  if (!task) return null
 
   const finish = async () => {
     setBusy(true)

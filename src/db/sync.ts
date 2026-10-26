@@ -134,27 +134,29 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 
   // 3. Slots
-  const isSlotDeleted = (s: Slot) => s.deleted === 1 || !activeTaskIds.has(s.taskId)
-  const deletedSlots = localSlots.filter(isSlotDeleted)
-  const activeSlots = localSlots.filter((s) => !isSlotDeleted(s))
+  // Les slots orphelins (dont le taskId est supprimé) ou les slots ponctuels supprimés doivent être purgés
+  const isOrphanSlot = (s: Slot) => !activeTaskIds.has(s.taskId) || (s.deleted === 1 && !s.recurrenceId)
+  const orphanSlots = localSlots.filter(isOrphanSlot)
+  // Les slots actifs OU les tombstones de créneau récurrent (qui masquent une occurrence d'une série active)
+  const slotsToSync = localSlots.filter((s) => !isOrphanSlot(s))
 
-  if (deletedSlots.length > 0) {
-    const ids = deletedSlots.map((s) => s.id)
+  if (orphanSlots.length > 0) {
+    const ids = orphanSlots.map((s) => s.id)
     await supabase.from('slots').delete().in('id', ids)
     await db.slots.bulkDelete(ids)
   }
 
-  if (activeSlots.length > 0) {
-    const payload = activeSlots.map((s) => ({
+  if (slotsToSync.length > 0) {
+    const payload = slotsToSync.map((s) => ({
       id: s.id,
       user_id: userId,
       task_id: s.taskId,
       date: s.date,
       start_min: s.startMin,
       duration_min: s.durationMin,
-      status: s.status,
+      status: s.deleted === 1 ? 'skipped' : s.status,
       recurrence_id: s.recurrenceId,
-      updated_at: new Date(s.updatedAt).toISOString(),
+      updated_at: new Date(s.updatedAt || Date.now()).toISOString(),
     }))
     const { error } = await supabase.from('slots').upsert(payload, { onConflict: 'id' })
     if (error) console.error('Sync slots error:', error)
@@ -296,6 +298,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       const existing = await db.slots.get(r.id)
       if (existing && existing.deleted === 1) continue
 
+      const isSkippedOrDeleted = r.status === 'skipped' || r.status === 'deleted'
       const local: Slot = {
         id: r.id,
         userId: r.user_id,
@@ -303,11 +306,11 @@ export async function pullFromSupabase(userId: string): Promise<void> {
         date: r.date,
         startMin: r.start_min,
         durationMin: r.duration_min,
-        status: r.status,
+        status: isSkippedOrDeleted ? 'skipped' : (r.status || 'planned'),
         recurrenceId: r.recurrence_id,
         createdAt: new Date(r.created_at).getTime(),
         updatedAt: new Date(r.updated_at).getTime(),
-        deleted: 0,
+        deleted: isSkippedOrDeleted ? 1 : 0,
       }
       await db.slots.put(local)
     }

@@ -47,6 +47,16 @@ async function syncPushIfOnline() {
   }
 }
 
+export async function getEffectiveUserId(): Promise<string> {
+  if (supabase) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) return session.user.id
+    } catch {}
+  }
+  return LOCAL_USER_ID
+}
+
 /* ------------------------------------------------------------------ */
 /* Tâches                                                              */
 /* ------------------------------------------------------------------ */
@@ -55,7 +65,7 @@ export async function listTasks(includeArchived = false): Promise<Task[]> {
   const all = await db.tasks.toArray()
   return all
     .filter((t) => alive(t) && (includeArchived || !t.archived))
-    .sort((a, b) => a.createdAt - b.createdAt)
+    .sort((a, b) => (a.createdAt - b.createdAt) || a.name.localeCompare(b.name))
 }
 
 export async function getTask(id: string): Promise<Task | undefined> {
@@ -64,8 +74,10 @@ export async function getTask(id: string): Promise<Task | undefined> {
 }
 
 export async function createTask(input: TaskInput, schedule?: ScheduleInput): Promise<Task> {
+  const userId = await getEffectiveUserId()
   const task: Task = {
     ...base(),
+    userId,
     ...input,
     name: input.name.trim(),
     startDate: today(),
@@ -74,7 +86,7 @@ export async function createTask(input: TaskInput, schedule?: ScheduleInput): Pr
   await db.transaction('rw', db.tasks, db.recurrences, async () => {
     await db.tasks.add(task)
     if (schedule && schedule.daysOfWeek.length) {
-      await addRecurrence(task.id, schedule, today())
+      await addRecurrence(task.id, schedule, today(), userId)
     }
   })
   syncPushIfOnline().catch(console.error)
@@ -107,9 +119,11 @@ export async function deleteTask(id: string): Promise<void> {
 /* Récurrences & planning                                              */
 /* ------------------------------------------------------------------ */
 
-async function addRecurrence(taskId: string, s: ScheduleInput, fromDate: ISODate) {
+async function addRecurrence(taskId: string, s: ScheduleInput, fromDate: ISODate, userId?: string) {
+  const uid = userId ?? (await getEffectiveUserId())
   const rec: Recurrence = {
     ...base(),
+    userId: uid,
     taskId,
     daysOfWeek: [...s.daysOfWeek].sort(),
     startMin: s.startMin,
@@ -223,6 +237,7 @@ export interface NewSlotInput {
 }
 
 export async function addSlot(input: NewSlotInput): Promise<void> {
+  const userId = await getEffectiveUserId()
   if (input.repeatDays.length) {
     await addRecurrence(
       input.taskId,
@@ -232,11 +247,14 @@ export async function addSlot(input: NewSlotInput): Promise<void> {
         durationMin: input.durationMin,
       },
       input.date,
+      userId,
     )
+    syncPushIfOnline().catch(console.error)
     return
   }
   const slot: Slot = {
     ...base(),
+    userId,
     taskId: input.taskId,
     date: input.date,
     startMin: input.startMin,
@@ -245,6 +263,7 @@ export async function addSlot(input: NewSlotInput): Promise<void> {
     recurrenceId: null,
   }
   await db.slots.add(slot)
+  syncPushIfOnline().catch(console.error)
 }
 
 /** Modifie UNE occurrence (la série n'est pas touchée). */
@@ -254,6 +273,7 @@ export async function updateOccurrence(
 ): Promise<void> {
   const slot = await materialize(item)
   await db.slots.update(slot.id, touch(patch))
+  syncPushIfOnline().catch(console.error)
 }
 
 /** Modifie l'horaire de toute la série. */
@@ -262,11 +282,13 @@ export async function updateRecurrence(
   patch: Partial<Pick<Recurrence, 'startMin' | 'durationMin' | 'daysOfWeek'>>,
 ): Promise<void> {
   await db.recurrences.update(id, touch(patch))
+  syncPushIfOnline().catch(console.error)
 }
 
 export async function setSlotStatus(item: PlanItem, status: SlotStatus): Promise<void> {
   const slot = await materialize(item)
   await db.slots.update(slot.id, touch({ status }))
+  syncPushIfOnline().catch(console.error)
 }
 
 export async function deleteOccurrence(item: PlanItem): Promise<void> {
@@ -345,6 +367,7 @@ export async function finishSession(id: string): Promise<Session> {
     await db.sessions.put(finished)
     if (s.slotId) await db.slots.update(s.slotId, touch({ status: 'done' as const }))
   })
+  syncPushIfOnline().catch(console.error)
   return finished
 }
 
@@ -355,6 +378,7 @@ export async function cancelSession(id: string): Promise<void> {
 
 export async function updateSessionDuration(id: string, durationMin: number): Promise<void> {
   await db.sessions.update(id, touch({ durationMin: Math.max(1, Math.round(durationMin)) }))
+  syncPushIfOnline().catch(console.error)
 }
 
 /** "J'ai déjà fait ce créneau" : enregistre une session terminée sans chrono. */
@@ -363,11 +387,13 @@ export async function logManualSession(
   durationMin: number,
   item?: PlanItem,
 ): Promise<Session> {
+  const userId = await getEffectiveUserId()
   const slot = item ? await materialize(item) : null
   const date = item?.date ?? today()
   const now = Date.now()
   const session: Session = {
     ...base(),
+    userId,
     taskId,
     slotId: slot?.id ?? null,
     date,
@@ -383,6 +409,7 @@ export async function logManualSession(
     await db.sessions.add(session)
     if (slot) await db.slots.update(slot.id, touch({ status: 'done' as const }))
   })
+  syncPushIfOnline().catch(console.error)
   return session
 }
 
@@ -422,10 +449,13 @@ export async function saveNote(session: Session, input: NoteInput): Promise<Note
   if (existing) {
     const updated = { ...existing, ...clean, updatedAt: Date.now() }
     await db.notes.put(updated)
+    syncPushIfOnline().catch(console.error)
     return updated
   }
-  const note: Note = { ...base(), sessionId: session.id, taskId: session.taskId, date: session.date, ...clean }
+  const userId = await getEffectiveUserId()
+  const note: Note = { ...base(), userId, sessionId: session.id, taskId: session.taskId, date: session.date, ...clean }
   await db.notes.add(note)
+  syncPushIfOnline().catch(console.error)
   return note
 }
 
@@ -473,39 +503,70 @@ export async function exportAll(): Promise<BackupFile> {
   }
 }
 
-/** Fusion "last-write-wins" : accepte aussi bien le format exporté que des plannings personnalisés. */
+/** Fusion et restauration : accepte aussi bien le format exporté que des plannings personnalisés. */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function importAll(file: any): Promise<number> {
   const data = file?.data ?? file
   if (!data || (!data.tasks && !data.recurrences && !data.slots && !data.sessions && !data.notes)) {
     throw new Error('Fichier de sauvegarde invalide')
   }
+
+  const effectiveUserId = await getEffectiveUserId()
   let count = 0
   const now = Date.now()
+
+  // 0. Auto-synthèse de sessions orphelines pour les notes afin de respecter les clés étrangères
+  const notesIncoming = (data.notes ?? []) as any[]
+  const sessionsIncoming = (data.sessions ?? []) as any[]
+  const sessionIds = new Set(sessionsIncoming.map((s: any) => s.id))
+  for (const n of notesIncoming) {
+    if (n.sessionId && !sessionIds.has(n.sessionId)) {
+      sessionsIncoming.push({
+        id: n.sessionId,
+        userId: effectiveUserId,
+        taskId: n.taskId,
+        slotId: null,
+        date: n.date || today(),
+        status: 'completed',
+        startedAt: typeof n.createdAt === 'number' ? n.createdAt : now,
+        endedAt: typeof n.createdAt === 'number' ? n.createdAt : now,
+        pausedMs: 0,
+        pausedAt: null,
+        plannedMin: 30,
+        durationMin: 30,
+        createdAt: typeof n.createdAt === 'number' ? n.createdAt : now,
+        updatedAt: now,
+        deleted: 0,
+      })
+      sessionIds.add(n.sessionId)
+    }
+  }
+  data.sessions = sessionsIncoming
+
   const tables = [db.tasks, db.recurrences, db.slots, db.sessions, db.notes] as const
   await db.transaction('rw', [...tables], async () => {
     for (const table of tables) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const incoming = (data[table.name as keyof BackupFile['data']] ?? []) as any[]
       for (const raw of incoming) {
-        const rec = {
+        if (!raw || !raw.id) continue
+        const rec: any = {
           ...raw,
-          userId: raw.userId ?? 'local-user',
+          userId: effectiveUserId,
           createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : now,
-          updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : now,
+          updatedAt: now, // Toujours 'now' pour écraser tout tombstone existant
           deleted: raw.deleted === 1 ? 1 : 0,
           description: raw.description ?? '',
           archived: raw.archived === true || raw.archived === 1 ? 1 : 0,
         }
-        const current = (await table.get(rec.id)) as BaseRecord | undefined
-        if (!current || current.updatedAt <= rec.updatedAt) {
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await table.put(rec as any)
-          count++
-        }
+        await table.put(rec)
+        count++
       }
     }
   })
+
+  // Synchronisation immédiate vers Supabase si connecté
+  await syncPushIfOnline()
   return count
 }
 
@@ -513,4 +574,15 @@ export async function wipeAll(): Promise<void> {
   await db.transaction('rw', [db.tasks, db.recurrences, db.slots, db.sessions, db.notes], async () => {
     await Promise.all([db.tasks.clear(), db.recurrences.clear(), db.slots.clear(), db.sessions.clear(), db.notes.clear()])
   })
+  if (supabase) {
+    try {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.user?.id) {
+        // En supprimant les tâches de l'utilisateur, la cascade PostgreSQL supprime recurrences, slots, sessions, notes
+        await supabase.from('tasks').delete().eq('user_id', session.user.id)
+      }
+    } catch (e) {
+      console.warn('Wipe Supabase error:', e)
+    }
+  }
 }

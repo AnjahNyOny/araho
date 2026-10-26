@@ -30,8 +30,10 @@ export function TaskFormSheet({ open, onClose, task, onCreated }: Props) {
     if (!open) return
     setName(task?.name ?? '')
     setDescription(task?.description ?? '')
-    setIcon(task?.icon && GLYPHS[task.icon] ? task.icon : DEFAULT_ICON)
-    setColor(task?.color?.startsWith('var(') ? task.color : DEFAULT_COLOR)
+    const rawIcon = task?.icon || ''
+    const cleanIcon = rawIcon.toLowerCase().replace(/[^a-z0-9]/g, '')
+    setIcon(GLYPHS[rawIcon] ? rawIcon : GLYPHS[cleanIcon] ? cleanIcon : DEFAULT_ICON)
+    setColor(task?.color || DEFAULT_COLOR)
     setGoal(task?.dailyGoalMin ?? 60)
     setDays([0, 1, 2, 3, 4, 5, 6])
     setTime(minutesToTime(9 * 60))

@@ -91,17 +91,14 @@ export async function setTaskArchived(id: string, archived: boolean): Promise<vo
   syncPushIfOnline().catch(console.error)
 }
 
-/** Suppression logique de la tâche, de ses récurrences et de ses créneaux futurs. */
+/** Suppression logique de la tâche, de ses récurrences, créneaux, sessions et notes associés. */
 export async function deleteTask(id: string): Promise<void> {
-  const t = today()
-  await db.transaction('rw', db.tasks, db.recurrences, db.slots, async () => {
+  await db.transaction('rw', db.tasks, db.recurrences, db.slots, db.sessions, db.notes, async () => {
     await db.tasks.update(id, touch({ deleted: 1 as const }))
     await db.recurrences.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
-    await db.slots
-      .where('taskId')
-      .equals(id)
-      .filter((s) => s.date >= t && s.status === 'planned')
-      .modify(touch({ deleted: 1 as const }))
+    await db.slots.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
+    await db.sessions.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
+    await db.notes.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
   })
   syncPushIfOnline().catch(console.error)
 }

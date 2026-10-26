@@ -1,7 +1,20 @@
-import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, Check, List, CalendarDays, Search, BarChart3 } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  Check,
+  List,
+  CalendarDays,
+  Search,
+  BarChart3,
+  GripVertical,
+  AlertCircle,
+  Sparkles,
+} from 'lucide-react'
 import { useNow, usePlan, useSessions, useTaskMap } from '../../db/hooks'
+import { updateOccurrence } from '../../db/repo'
 import type { PlanItem } from '../../db/types'
 import {
   addDays,
@@ -14,6 +27,7 @@ import {
   weekDatesSunday,
   type ISODate,
 } from '../../lib/date'
+import { checkCollision, getFreeSlots } from '../../lib/scheduling'
 import { AddSlotSheet } from '../planning/AddSlotSheet'
 import { SlotSheet } from '../planning/SlotSheet'
 import { WeeklyReviewSheet } from './WeeklyReviewSheet'
@@ -29,6 +43,18 @@ const HOURS = Array.from(
   (_, i) => TIMELINE_START_HOUR + i,
 )
 
+interface DragState {
+  item: PlanItem
+  pointerId: number
+  startY: number
+  currentY: number
+  initialStartMin: number
+  currentStartMin: number
+  collision: boolean
+  collidingItem?: PlanItem
+  hasMoved: boolean
+}
+
 export function WeekPage() {
   const navigate = useNavigate()
   const [selectedDate, setSelectedDate] = useState<ISODate>(today())
@@ -36,6 +62,7 @@ export function WeekPage() {
   const [addingSlot, setAddingSlot] = useState<{ date: ISODate; startMin?: number } | null>(null)
   const [selectedSlot, setSelectedSlot] = useState<PlanItem | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [dragState, setDragState] = useState<DragState | null>(null)
 
   const timelineWrapRef = useRef<HTMLDivElement>(null)
 
@@ -55,6 +82,109 @@ export function WeekPage() {
     const list = plan?.[selectedDate] ?? []
     return [...list].sort((a, b) => a.startMin - b.startMin)
   }, [plan, selectedDate])
+
+  // Créneaux libres pour la journée sélectionnée
+  const freeSlots = useMemo(() => {
+    const dayStartMin = TIMELINE_START_HOUR * 60
+    const dayEndMin = (TIMELINE_END_HOUR + 1) * 60
+    const activeItems = dragState?.hasMoved
+      ? currentDayItems.filter((i) => i.key !== dragState.item.key)
+      : currentDayItems
+    return getFreeSlots(activeItems, dayStartMin, dayEndMin, 15)
+  }, [currentDayItems, dragState?.hasMoved, dragState?.item.key])
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>, item: PlanItem) => {
+    if (e.button !== 0 && e.pointerType === 'mouse') return
+    if (item.status === 'skipped') return
+
+    const target = e.currentTarget
+    try {
+      target.setPointerCapture(e.pointerId)
+    } catch {}
+
+    setDragState({
+      item,
+      pointerId: e.pointerId,
+      startY: e.clientY,
+      currentY: e.clientY,
+      initialStartMin: item.startMin,
+      currentStartMin: item.startMin,
+      collision: false,
+      hasMoved: false,
+    })
+  }
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState || dragState.pointerId !== e.pointerId) return
+
+    const dy = e.clientY - dragState.startY
+    const hasMoved = dragState.hasMoved || Math.abs(dy) > 5
+    if (!hasMoved) return
+
+    const pxPerMin = HOUR_HEIGHT / 60
+    const deltaMin = Math.round((dy / pxPerMin) / 15) * 15
+    let targetMin = dragState.initialStartMin + deltaMin
+
+    const minBound = TIMELINE_START_HOUR * 60
+    const maxBound = (TIMELINE_END_HOUR + 1) * 60 - dragState.item.durationMin
+    targetMin = Math.max(minBound, Math.min(maxBound, targetMin))
+
+    const { collision, collidingItem } = checkCollision(
+      targetMin,
+      dragState.item.durationMin,
+      currentDayItems,
+      dragState.item.key,
+    )
+
+    if (timelineWrapRef.current) {
+      const rect = timelineWrapRef.current.getBoundingClientRect()
+      if (e.clientY < rect.top + 70) {
+        timelineWrapRef.current.scrollTop -= 10
+      } else if (e.clientY > rect.bottom - 70) {
+        timelineWrapRef.current.scrollTop += 10
+      }
+    }
+
+    setDragState((prev) =>
+      prev
+        ? {
+            ...prev,
+            currentY: e.clientY,
+            currentStartMin: targetMin,
+            collision,
+            collidingItem,
+            hasMoved: true,
+          }
+        : null,
+    )
+  }
+
+  const handlePointerUp = async (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState || dragState.pointerId !== e.pointerId) return
+
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {}
+
+    const drag = dragState
+    setDragState(null)
+
+    if (drag.hasMoved) {
+      if (drag.currentStartMin !== drag.item.startMin) {
+        await updateOccurrence(drag.item, { startMin: drag.currentStartMin })
+      }
+    } else {
+      setSelectedSlot(drag.item)
+    }
+  }
+
+  const handlePointerCancel = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!dragState || dragState.pointerId !== e.pointerId) return
+    try {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    } catch {}
+    setDragState(null)
+  }
 
   // Défilement automatique vers l'heure courante au chargement
   useEffect(() => {
@@ -206,11 +336,34 @@ export function WeekPage() {
               </div>
             )}
 
+            {/* Zones de créneaux libres visibles pendant le déplacement */}
+            {dragState?.hasMoved &&
+              freeSlots.map((slot, sIdx) => {
+                const sTop = TIMELINE_TOP_PAD + (slot.startMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
+                const sHeight = slot.durationMin * (HOUR_HEIGHT / 60)
+                const canFit = slot.durationMin >= (dragState?.item.durationMin ?? 0)
+                if (sHeight < 14) return null
+                return (
+                  <div
+                    key={`free-zone-${sIdx}`}
+                    className={`cal-free-slot-zone ${canFit ? 'can-fit' : ''}`}
+                    style={{ top: sTop, height: sHeight }}
+                  >
+                    {sHeight >= 24 && (
+                      <span className="cal-free-slot-label">
+                        Créneau libre ({formatDuration(slot.durationMin)})
+                      </span>
+                    )}
+                  </div>
+                )
+              })}
+
             {/* Blocs d'événements positionnés */}
             {currentDayItems.map((item) => {
               const task = tasks?.get(item.taskId)
               if (!task) return null
 
+              const isDraggingThis = dragState?.hasMoved && dragState.item.key === item.key
               const top = TIMELINE_TOP_PAD + (item.startMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
               const isCompact = item.durationMin <= 35
               const height = Math.max(isCompact ? 28 : 46, item.durationMin * (HOUR_HEIGHT / 60) - 2)
@@ -218,55 +371,125 @@ export function WeekPage() {
               const skipped = item.status === 'skipped'
 
               return (
-                <div
-                  key={item.key}
-                  className={`cal-event ${isCompact ? 'is-compact' : 'is-standard'}`}
-                  style={
-                    {
-                      '--c': task.color,
-                      top,
-                      height,
-                      opacity: skipped ? 0.45 : 1,
-                    } as CSSProperties
-                  }
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setSelectedSlot(item)
-                  }}
-                  id={`cal-slot-${item.key}`}
-                  role="button"
-                  tabIndex={0}
-                >
-                  {isCompact ? (
-                    <div className="cal-event-row">
-                      <span className="cal-event-title truncate">{task.name}</span>
-                      <span className="cal-event-bullet">·</span>
-                      <span className="cal-event-time">
-                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
-                      </span>
-                      {done && (
-                        <span className="cal-event-check">
-                          <Check size={13} strokeWidth={3} />
-                        </span>
-                      )}
-                    </div>
-                  ) : (
-                    <div className="cal-event-stack">
-                      <div className="row spread" style={{ alignItems: 'flex-start' }}>
+                <Fragment key={item.key}>
+                  {/* Si l'élément est en train d'être déplacé, afficher un fantôme à sa place originale */}
+                  {isDraggingThis && (
+                    <div
+                      className={`cal-event is-placeholder ${isCompact ? 'is-compact' : 'is-standard'}`}
+                      style={
+                        {
+                          '--c': task.color,
+                          top,
+                          height,
+                        } as CSSProperties
+                      }
+                    />
+                  )}
+
+                  {/* L'élément lui-même (en position normale ou en cours de drag) */}
+                  <div
+                    className={`cal-event ${isDraggingThis ? 'is-dragging' : ''} ${
+                      isCompact ? 'is-compact' : 'is-standard'
+                    }`}
+                    style={
+                      {
+                        '--c': task.color,
+                        top: isDraggingThis
+                          ? TIMELINE_TOP_PAD +
+                            (dragState.currentStartMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
+                          : top,
+                        height,
+                        opacity: skipped ? 0.45 : 1,
+                      } as CSSProperties
+                    }
+                    onPointerDown={(e) => handlePointerDown(e, item)}
+                    onPointerMove={handlePointerMove}
+                    onPointerUp={handlePointerUp}
+                    onPointerCancel={handlePointerCancel}
+                    id={`cal-slot-${item.key}`}
+                    role="button"
+                    tabIndex={0}
+                  >
+                    {/* Badge flottant indiquant si le créneau visé est libre ou en collision */}
+                    {isDraggingThis && (
+                      <div className={`cal-drag-badge ${dragState.collision ? 'is-collision' : 'is-free'}`}>
+                        {dragState.collision ? (
+                          <>
+                            <AlertCircle size={12} strokeWidth={2.5} />
+                            <span>
+                              {minutesToTime(dragState.currentStartMin)} –{' '}
+                              {minutesToTime(dragState.currentStartMin + item.durationMin)} · Chevauchement
+                            </span>
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles size={12} strokeWidth={2.5} />
+                            <span>
+                              {minutesToTime(dragState.currentStartMin)} –{' '}
+                              {minutesToTime(dragState.currentStartMin + item.durationMin)} · Créneau libre
+                            </span>
+                          </>
+                        )}
+                      </div>
+                    )}
+
+                    {isCompact ? (
+                      <div className="cal-event-row">
                         <span className="cal-event-title truncate">{task.name}</span>
+                        <span className="cal-event-bullet">·</span>
+                        <span className="cal-event-time">
+                          {minutesToTime(
+                            isDraggingThis ? dragState.currentStartMin : item.startMin,
+                          )}{' '}
+                          –{' '}
+                          {minutesToTime(
+                            (isDraggingThis ? dragState.currentStartMin : item.startMin) +
+                              item.durationMin,
+                          )}
+                        </span>
                         {done && (
                           <span className="cal-event-check">
-                            <Check size={14} strokeWidth={3} />
+                            <Check size={13} strokeWidth={3} />
+                          </span>
+                        )}
+                        {!skipped && (
+                          <span className="cal-drag-handle" title="Glisser pour déplacer">
+                            <GripVertical size={13} />
                           </span>
                         )}
                       </div>
-                      <span className="cal-event-time">
-                        {minutesToTime(item.startMin)} – {minutesToTime(item.startMin + item.durationMin)}
-                        {skipped ? ' · Sauté' : ''}
-                      </span>
-                    </div>
-                  )}
-                </div>
+                    ) : (
+                      <div className="cal-event-stack">
+                        <div className="row spread" style={{ alignItems: 'flex-start' }}>
+                          <span className="cal-event-title truncate">{task.name}</span>
+                          <div className="row" style={{ gap: 4 }}>
+                            {done && (
+                              <span className="cal-event-check">
+                                <Check size={14} strokeWidth={3} />
+                              </span>
+                            )}
+                            {!skipped && (
+                              <span className="cal-drag-handle" title="Glisser pour déplacer">
+                                <GripVertical size={14} />
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                        <span className="cal-event-time">
+                          {minutesToTime(
+                            isDraggingThis ? dragState.currentStartMin : item.startMin,
+                          )}{' '}
+                          –{' '}
+                          {minutesToTime(
+                            (isDraggingThis ? dragState.currentStartMin : item.startMin) +
+                              item.durationMin,
+                          )}
+                          {skipped ? ' · Sauté' : ''}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </Fragment>
               )
             })}
           </div>

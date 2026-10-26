@@ -372,6 +372,177 @@
   flex-shrink: 0;
 }
 
+.cal-drag-handle {
+  opacity: 0.45;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: grab;
+  flex-shrink: 0;
+  margin-left: 4px;
+  touch-action: none;
+}
+
+.cal-drag-handle:active {
+  cursor: grabbing;
+  opacity: 0.9;
+}
+
+/* État drag & drop de l'événement */
+.cal-event.is-dragging {
+  z-index: 100 !important;
+  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.32), 0 3px 10px rgba(0, 0, 0, 0.14) !important;
+  cursor: grabbing !important;
+  transform: scale(1.025);
+  transition: transform 80ms ease, box-shadow 80ms ease;
+  touch-action: none;
+}
+
+.cal-event.is-placeholder {
+  opacity: 0.3 !important;
+  border: 1.5px dashed var(--c, var(--accent)) !important;
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.cal-drag-badge {
+  position: absolute;
+  top: -26px;
+  left: 2px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  white-space: nowrap;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.22);
+  z-index: 120;
+  pointer-events: none;
+  font-variant-numeric: tabular-nums;
+}
+
+.cal-drag-badge.is-free {
+  background: var(--sys-green);
+  color: #ffffff;
+}
+
+.cal-drag-badge.is-collision {
+  background: var(--sys-orange);
+  color: #ffffff;
+}
+
+/* Zones de créneaux libres sur la timeline */
+.cal-free-slot-zone {
+  position: absolute;
+  left: 56px;
+  right: 12px;
+  border-radius: 6px;
+  background: color-mix(in srgb, var(--sys-green) 7%, transparent);
+  border: 1.5px dashed color-mix(in srgb, var(--sys-green) 35%, transparent);
+  pointer-events: none;
+  z-index: 4;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  padding-right: 12px;
+  box-sizing: border-box;
+  animation: fadeIn 200ms ease;
+}
+
+.cal-free-slot-zone.can-fit {
+  border-color: color-mix(in srgb, var(--sys-green) 65%, transparent);
+  background: color-mix(in srgb, var(--sys-green) 12%, transparent);
+}
+
+.cal-free-slot-label {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--sys-green);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.2px;
+}
+
+/* Créneaux libres dans la vue Aujourd'hui */
+.today-free-slot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 14px;
+  margin: 4px 0;
+  border-radius: var(--r-cell);
+  background: color-mix(in srgb, var(--sys-green) 6%, var(--bg-cell));
+  border: 1.5px dashed color-mix(in srgb, var(--sys-green) 35%, var(--separator));
+  transition: all 140ms ease;
+  cursor: pointer;
+  user-select: none;
+}
+
+.today-free-slot:hover {
+  background: color-mix(in srgb, var(--sys-green) 10%, var(--bg-cell));
+  border-color: color-mix(in srgb, var(--sys-green) 50%, var(--separator));
+}
+
+.today-free-slot.is-drag-over {
+  background: color-mix(in srgb, var(--sys-green) 22%, var(--bg-cell)) !important;
+  border-color: var(--sys-green) !important;
+  border-style: solid !important;
+  transform: scale(1.015);
+  box-shadow: 0 6px 18px rgba(52, 199, 89, 0.25);
+}
+
+.today-free-slot-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--label-2);
+}
+
+.today-free-slot-badge {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 2px 7px;
+  border-radius: 999px;
+  background: color-mix(in srgb, var(--sys-green) 15%, transparent);
+  color: var(--sys-green);
+  font-variant-numeric: tabular-nums;
+}
+
+.today-free-slot-action {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--accent);
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.slot-postpone-btn {
+  background: transparent;
+  border: none;
+  color: var(--label-3);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  padding: 6px;
+  border-radius: 6px;
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.slot-postpone-btn:hover {
+  color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 12%, transparent);
+}
+
+
 /* Ligne temps réel style Apple */
 .cal-now-line {
   position: absolute;

@@ -1,13 +1,21 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
-import { Play, Check, SkipForward, Trash2, Repeat, NotebookPen, Undo2, Clock } from 'lucide-react'
+import { Play, Check, SkipForward, Trash2, Repeat, NotebookPen, Undo2, Clock, Sparkles } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
 import { DurationPicker, Section, TaskIcon } from '../../components/ui'
-import { useActiveSession, useTaskMap } from '../../db/hooks'
+import { useActiveSession, useDayPlan, useTaskMap } from '../../db/hooks'
 import * as repo from '../../db/repo'
 import type { PlanItem } from '../../db/types'
-import { describeDays, formatDuration, minutesToTime, relativeDayLabel, timeToMinutes } from '../../lib/date'
+import {
+  addDays,
+  describeDays,
+  formatDuration,
+  minutesToTime,
+  relativeDayLabel,
+  timeToMinutes,
+} from '../../lib/date'
+import { findNextFreeSlot } from '../../lib/scheduling'
 
 interface Props {
   item: PlanItem | null
@@ -18,10 +26,16 @@ export function SlotSheet({ item, onClose }: Props) {
   const navigate = useNavigate()
   const tasks = useTaskMap()
   const active = useActiveSession()
+  const dayPlan = useDayPlan(item?.date ?? '')
   const [editing, setEditing] = useState(false)
   const [time, setTime] = useState('09:00')
   const [duration, setDuration] = useState(60)
   const [scope, setScope] = useState<'one' | 'series'>('one')
+
+  const nextFree = useMemo(() => {
+    if (!dayPlan || !item) return null
+    return findNextFreeSlot(item, dayPlan)
+  }, [dayPlan, item])
 
   const sessions = useLiveQuery(
     () => (item?.slot ? repo.getSessionsForSlot(item.slot.id) : []),
@@ -169,6 +183,71 @@ export function SlotSheet({ item, onClose }: Props) {
                 {isActiveHere ? 'Reprendre la session' : 'Démarrer la session'}
               </button>
             </div>
+          )}
+
+          {!done && !isActiveHere && (
+            <Section title="Décaler / Reporter">
+              {nextFree && (
+                <button
+                  className="cell is-accent"
+                  id="slot-postpone-free"
+                  onClick={async () => {
+                    await repo.updateOccurrence(item, { startMin: nextFree.startMin })
+                    onClose()
+                  }}
+                >
+                  <Sparkles size={20} style={{ color: 'var(--sys-green)' }} />
+                  <div className="cell-body">
+                    <div className="cell-title">Prochain créneau libre</div>
+                    <div className="cell-sub tabular">
+                      {minutesToTime(nextFree.startMin)} – {minutesToTime(nextFree.startMin + item.durationMin)}
+                    </div>
+                  </div>
+                  <span className="chip chip-sm is-active" style={{ fontSize: 12 }}>
+                    Décaler
+                  </span>
+                </button>
+              )}
+              <div className="pad row" style={{ gap: 8, paddingTop: 6, paddingBottom: 10 }}>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary grow"
+                  id="slot-postpone-30m"
+                  onClick={async () => {
+                    await repo.updateOccurrence(item, {
+                      startMin: Math.min(23 * 60 - item.durationMin, item.startMin + 30),
+                    })
+                    onClose()
+                  }}
+                >
+                  +30 min
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary grow"
+                  id="slot-postpone-1h"
+                  onClick={async () => {
+                    await repo.updateOccurrence(item, {
+                      startMin: Math.min(23 * 60 - item.durationMin, item.startMin + 60),
+                    })
+                    onClose()
+                  }}
+                >
+                  +1h
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-sm btn-secondary grow"
+                  id="slot-postpone-tomorrow"
+                  onClick={async () => {
+                    await repo.updateOccurrence(item, { date: addDays(item.date, 1) })
+                    onClose()
+                  }}
+                >
+                  À demain
+                </button>
+              </div>
+            </Section>
           )}
 
           <Section>

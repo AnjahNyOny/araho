@@ -6,9 +6,10 @@ function sanitizeUrl(url: string): string {
   return url.trim().replace(/\/rest\/v1\/?$/, '').replace(/\/+$/, '')
 }
 
-const rawUrl = import.meta.env.VITE_SUPABASE_URL || ''
+const env = ((import.meta as unknown as { env?: Record<string, string> }).env) ?? {}
+const rawUrl = env.VITE_SUPABASE_URL || ''
 const supabaseUrl = sanitizeUrl(rawUrl)
-const supabaseAnonKey = (import.meta.env.VITE_SUPABASE_ANON_KEY || '').trim()
+const supabaseAnonKey = (env.VITE_SUPABASE_ANON_KEY || '').trim()
 
 export const isSupabaseConfigured = Boolean(
   supabaseUrl &&

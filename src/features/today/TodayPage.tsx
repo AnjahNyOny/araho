@@ -1,9 +1,20 @@
 import { Fragment, useMemo, useState, type CSSProperties } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { ChevronLeft, ChevronRight, Plus, CalendarPlus, Play, Check, ListChecks, Brain } from 'lucide-react'
+import {
+  ChevronLeft,
+  ChevronRight,
+  Plus,
+  CalendarPlus,
+  Play,
+  Check,
+  ListChecks,
+  Brain,
+  Sparkles,
+  FastForward,
+} from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
 import { useActiveSession, useDayPlan, useNow, useSessions, useTaskMap, useTasks, useNotes } from '../../db/hooks'
-import { elapsedMs, startSession } from '../../db/repo'
+import { elapsedMs, startSession, updateOccurrence } from '../../db/repo'
 import type { PlanItem, Task } from '../../db/types'
 import {
   addDays,
@@ -16,6 +27,7 @@ import {
   today,
 } from '../../lib/date'
 import { getDueNotes } from '../../lib/spacedRepetition'
+import { getFreeSlots, postponePlanItem, type FreeSlot } from '../../lib/scheduling'
 import { AddSlotSheet } from '../planning/AddSlotSheet'
 import { SlotSheet } from '../planning/SlotSheet'
 import { TaskFormSheet } from '../tasks/TaskFormSheet'
@@ -35,10 +47,13 @@ export function TodayPage() {
   const allNotes = useNotes()
   const now = useNow(active ? 1000 : 30_000)
 
-  const [adding, setAdding] = useState(false)
+  const [addingSlotInfo, setAddingSlotInfo] = useState<{ date: string; startMin?: number } | null>(null)
   const [creatingTask, setCreatingTask] = useState(false)
   const [selected, setSelected] = useState<PlanItem | null>(null)
   const [reviewOpen, setReviewOpen] = useState(false)
+  const [draggedKey, setDraggedKey] = useState<string | null>(null)
+  const [dragOverSlotStart, setDragOverSlotStart] = useState<number | null>(null)
+  const [toastMessage, setToastMessage] = useState<string | null>(null)
 
   const dueNotes = useMemo(() => (allNotes ? getDueNotes(allNotes) : []), [allNotes])
 
@@ -54,8 +69,25 @@ export function TodayPage() {
   const nowMin = nowMinutes(new Date(now))
   const loading = !plan || !tasks || !taskList
 
+  // Créneaux libres de plus de 20 minutes
+  const freeSlots = useMemo(() => {
+    if (!plan) return []
+    return getFreeSlots(plan, 8 * 60, 22 * 60, 20)
+  }, [plan])
+
+  // Filtrer pour n'afficher que les créneaux futurs pour aujourd'hui
+  const visibleFreeSlots = useMemo(() => {
+    if (!isToday) return freeSlots
+    return freeSlots.filter((s) => s.endMin > nowMin)
+  }, [freeSlots, isToday, nowMin])
+
   // Index où insérer le repère "Maintenant"
   const nowIndex = isToday && plan ? plan.findIndex((i) => i.startMin + i.durationMin > nowMin) : -1
+
+  const showToast = (msg: string) => {
+    setToastMessage(msg)
+    setTimeout(() => setToastMessage(null), 3000)
+  }
 
   const quickStart = async (item: PlanItem) => {
     if (active) {
@@ -64,6 +96,27 @@ export function TodayPage() {
     }
     await startSession(item.taskId, item)
     navigate('/session')
+  }
+
+  const handleQuickPostpone = async (item: PlanItem) => {
+    const res = await postponePlanItem(item, plan ?? [], 'next-free', { isToday, nowMin })
+    if (res.success) {
+      showToast(res.message)
+    } else {
+      alert(res.message)
+    }
+  }
+
+  const handleDropOnFreeSlot = async (e: React.DragEvent, targetSlot: FreeSlot) => {
+    e.preventDefault()
+    setDragOverSlotStart(null)
+    setDraggedKey(null)
+    const itemKey = e.dataTransfer.getData('text/plain')
+    const item = plan?.find((i) => i.key === itemKey)
+    if (item) {
+      await updateOccurrence(item, { startMin: targetSlot.startMin })
+      showToast(`Décalé à ${minutesToTime(targetSlot.startMin)}`)
+    }
   }
 
   return (
@@ -87,7 +140,7 @@ export function TodayPage() {
         }
         title={isToday ? "Aujourd'hui" : relativeDayLabel(date) === formatDayLong(date) ? 'Planning' : relativeDayLabel(date)}
         actions={
-          <button className="icon-btn is-filled" onClick={() => setAdding(true)} aria-label="Ajouter un créneau" id="today-add">
+          <button className="icon-btn is-filled" onClick={() => setAddingSlotInfo({ date, startMin: 9 * 60 })} aria-label="Ajouter un créneau" id="today-add">
             <Plus size={22} />
           </button>
         }
@@ -147,28 +200,82 @@ export function TodayPage() {
                 title="Aucun créneau"
                 text="Alloue du temps à tes tâches pour structurer ta journée."
                 action={
-                  <button className="btn btn-primary" onClick={() => setAdding(true)} id="today-empty-add">
+                  <button className="btn btn-primary" onClick={() => setAddingSlotInfo({ date, startMin: 9 * 60 })} id="today-empty-add">
                     Ajouter un créneau
                   </button>
                 }
               />
             ) : (
               <div className="group animate-in">
-                {plan.map((item, idx) => (
-                  <Fragment key={item.key}>
-                    {idx === nowIndex && <NowMarker min={nowMin} />}
-                    <SlotRow
-                      item={item}
-                      task={tasks.get(item.taskId)!}
-                      activeMs={
-                        active && item.slot && active.slotId === item.slot.id ? elapsedMs(active, now) : null
-                      }
-                      paused={!!active?.pausedAt}
-                      onOpen={() => setSelected(item)}
-                      onStart={() => quickStart(item)}
+                {/* Créneau libre avant la première tâche */}
+                {(() => {
+                  const firstFree = visibleFreeSlots.find(
+                    (s) => plan.length > 0 && s.endMin <= plan[0].startMin,
+                  )
+                  if (!firstFree) return null
+                  return (
+                    <TodayFreeSlot
+                      key={`free-before-${firstFree.startMin}`}
+                      slot={firstFree}
+                      isDragOver={dragOverSlotStart === firstFree.startMin}
+                      onDragOver={(e) => {
+                        e.preventDefault()
+                        setDragOverSlotStart(firstFree.startMin)
+                      }}
+                      onDragLeave={() => setDragOverSlotStart(null)}
+                      onDrop={(e) => handleDropOnFreeSlot(e, firstFree)}
+                      onAdd={() => setAddingSlotInfo({ date, startMin: firstFree.startMin })}
                     />
-                  </Fragment>
-                ))}
+                  )
+                })()}
+
+                {plan.map((item, idx) => {
+                  const freeAfter = visibleFreeSlots.find(
+                    (s) =>
+                      s.startMin >= item.startMin + item.durationMin - 5 &&
+                      (idx === plan.length - 1 || s.endMin <= plan[idx + 1].startMin + 5),
+                  )
+
+                  return (
+                    <Fragment key={item.key}>
+                      {idx === nowIndex && <NowMarker min={nowMin} />}
+                      <SlotRow
+                        item={item}
+                        task={tasks.get(item.taskId)!}
+                        activeMs={
+                          active && item.slot && active.slotId === item.slot.id ? elapsedMs(active, now) : null
+                        }
+                        paused={!!active?.pausedAt}
+                        isDragging={draggedKey === item.key}
+                        onDragStart={(e) => {
+                          e.dataTransfer.setData('text/plain', item.key)
+                          setDraggedKey(item.key)
+                        }}
+                        onDragEnd={() => {
+                          setDraggedKey(null)
+                          setDragOverSlotStart(null)
+                        }}
+                        onOpen={() => setSelected(item)}
+                        onStart={() => quickStart(item)}
+                        onPostpone={() => handleQuickPostpone(item)}
+                      />
+                      {freeAfter && (
+                        <TodayFreeSlot
+                          key={`free-after-${item.key}-${freeAfter.startMin}`}
+                          slot={freeAfter}
+                          isDragOver={dragOverSlotStart === freeAfter.startMin}
+                          onDragOver={(e) => {
+                            e.preventDefault()
+                            setDragOverSlotStart(freeAfter.startMin)
+                          }}
+                          onDragLeave={() => setDragOverSlotStart(null)}
+                          onDrop={(e) => handleDropOnFreeSlot(e, freeAfter)}
+                          onAdd={() => setAddingSlotInfo({ date, startMin: freeAfter.startMin })}
+                        />
+                      )}
+                    </Fragment>
+                  )
+                })}
                 {isToday && nowIndex === -1 && <NowMarker min={nowMin} />}
               </div>
             )}
@@ -176,7 +283,32 @@ export function TodayPage() {
         </>
       )}
 
-      <AddSlotSheet open={adding} onClose={() => setAdding(false)} date={date} onNeedTask={() => setCreatingTask(true)} />
+      {toastMessage && (
+        <div
+          className="cal-drag-badge is-free animate-in"
+          style={{
+            position: 'fixed',
+            bottom: 'calc(var(--tabbar-h) + var(--safe-bottom) + 16px)',
+            left: '50%',
+            transform: 'translateX(-50%)',
+            padding: '8px 16px',
+            fontSize: 13,
+            zIndex: 120,
+            boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
+          }}
+        >
+          <Sparkles size={14} strokeWidth={2.5} />
+          <span>{toastMessage}</span>
+        </div>
+      )}
+
+      <AddSlotSheet
+        open={!!addingSlotInfo}
+        onClose={() => setAddingSlotInfo(null)}
+        date={addingSlotInfo?.date ?? date}
+        initialStartMin={addingSlotInfo?.startMin}
+        onNeedTask={() => setCreatingTask(true)}
+      />
       <SlotSheet item={selected} onClose={() => setSelected(null)} />
       <TaskFormSheet open={creatingTask} onClose={() => setCreatingTask(false)} />
       {tasks && (
@@ -200,16 +332,78 @@ function NowMarker({ min }: { min: number }) {
   )
 }
 
+interface TodayFreeSlotProps {
+  slot: FreeSlot
+  isDragOver: boolean
+  onDragOver: (e: React.DragEvent) => void
+  onDragLeave: () => void
+  onDrop: (e: React.DragEvent) => void
+  onAdd: () => void
+}
+
+function TodayFreeSlot({
+  slot,
+  isDragOver,
+  onDragOver,
+  onDragLeave,
+  onDrop,
+  onAdd,
+}: TodayFreeSlotProps) {
+  return (
+    <div
+      className={`today-free-slot ${isDragOver ? 'is-drag-over' : ''}`}
+      onDragOver={onDragOver}
+      onDragLeave={onDragLeave}
+      onDrop={onDrop}
+      onClick={onAdd}
+      title="Cliquer pour ajouter un créneau ou glisser une tâche ici pour la reporter"
+    >
+      <div className="today-free-slot-info">
+        <Sparkles size={14} style={{ color: 'var(--sys-green)' }} />
+        <span>{isDragOver ? '🎯 Déposer ici pour reporter à' : 'Créneau libre'}</span>
+        <span className="today-free-slot-badge">
+          {minutesToTime(slot.startMin)} – {minutesToTime(slot.endMin)} ({formatDuration(slot.durationMin)})
+        </span>
+      </div>
+      <button
+        type="button"
+        className="today-free-slot-action"
+        onClick={(e) => {
+          e.stopPropagation()
+          onAdd()
+        }}
+      >
+        <Plus size={13} strokeWidth={2.4} /> Créneau
+      </button>
+    </div>
+  )
+}
+
 interface SlotRowProps {
   item: PlanItem
   task: Task
   activeMs: number | null
   paused: boolean
+  isDragging?: boolean
+  onDragStart?: (e: React.DragEvent) => void
+  onDragEnd?: () => void
   onOpen: () => void
   onStart: () => void
+  onPostpone?: () => void
 }
 
-function SlotRow({ item, task, activeMs, paused, onOpen, onStart }: SlotRowProps) {
+function SlotRow({
+  item,
+  task,
+  activeMs,
+  paused,
+  isDragging,
+  onDragStart,
+  onDragEnd,
+  onOpen,
+  onStart,
+  onPostpone,
+}: SlotRowProps) {
   const done = item.status === 'done'
   const skipped = item.status === 'skipped'
   const running = activeMs !== null
@@ -221,11 +415,14 @@ function SlotRow({ item, task, activeMs, paused, onOpen, onStart }: SlotRowProps
 
   return (
     <div
-      className={`cell has-icon is-tappable ${skipped ? 'is-skipped' : ''}`}
+      className={`cell has-icon is-tappable ${skipped ? 'is-skipped' : ''} ${isDragging ? 'is-placeholder' : ''}`}
       onClick={onOpen}
       role="button"
       tabIndex={0}
       id={`slot-${item.key}`}
+      draggable={!running && !done && !skipped}
+      onDragStart={onDragStart}
+      onDragEnd={onDragEnd}
       onKeyDown={(e) => e.key === 'Enter' && onOpen()}
     >
       <TaskIcon task={task} size={34} />
@@ -235,23 +432,40 @@ function SlotRow({ item, task, activeMs, paused, onOpen, onStart }: SlotRowProps
         </div>
         <div className="cell-sub tabular">{sub}</div>
       </div>
-      {done ? (
-        <span className="check is-done" aria-label="Fait">
-          <Check size={16} strokeWidth={3} />
-        </span>
-      ) : skipped ? null : (
-        <button
-          className={`check ${running ? 'is-done' : 'is-play'}`}
-          aria-label={running ? 'Reprendre' : 'Démarrer'}
-          id={`slot-start-${item.key}`}
-          onClick={(e) => {
-            e.stopPropagation()
-            onStart()
-          }}
-        >
-          <Play size={12} fill="currentColor" style={{ marginLeft: 1 }} />
-        </button>
-      )}
+      <div className="row" style={{ gap: 6, alignItems: 'center' }}>
+        {!done && !skipped && !running && onPostpone && (
+          <button
+            type="button"
+            className="slot-postpone-btn"
+            title="Décaler au prochain créneau libre"
+            aria-label="Décaler au prochain créneau libre"
+            id={`slot-postpone-${item.key}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onPostpone()
+            }}
+          >
+            <FastForward size={16} />
+          </button>
+        )}
+        {done ? (
+          <span className="check is-done" aria-label="Fait">
+            <Check size={16} strokeWidth={3} />
+          </span>
+        ) : skipped ? null : (
+          <button
+            className={`check ${running ? 'is-done' : 'is-play'}`}
+            aria-label={running ? 'Reprendre' : 'Démarrer'}
+            id={`slot-start-${item.key}`}
+            onClick={(e) => {
+              e.stopPropagation()
+              onStart()
+            }}
+          >
+            <Play size={12} fill="currentColor" style={{ marginLeft: 1 }} />
+          </button>
+        )}
+      </div>
     </div>
   )
 }

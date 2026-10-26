@@ -19,6 +19,8 @@ import type {
 } from './types'
 import { dayOfWeek, today, type ISODate } from '../lib/date'
 import { uuid } from '../lib/id'
+import { supabase } from '../lib/supabase'
+import { pushToSupabase } from './sync'
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -32,6 +34,18 @@ function base(): BaseRecord {
 export const alive = <T extends BaseRecord>(r: T | undefined): r is T => !!r && !r.deleted
 
 const touch = <T extends object>(patch: T) => ({ ...patch, updatedAt: Date.now() })
+
+async function syncPushIfOnline() {
+  if (!supabase) return
+  try {
+    const { data: { session } } = await supabase.auth.getSession()
+    if (session?.user?.id) {
+      await pushToSupabase(session.user.id)
+    }
+  } catch (err) {
+    console.warn('Sync push error:', err)
+  }
+}
 
 /* ------------------------------------------------------------------ */
 /* Tâches                                                              */
@@ -63,15 +77,18 @@ export async function createTask(input: TaskInput, schedule?: ScheduleInput): Pr
       await addRecurrence(task.id, schedule, today())
     }
   })
+  syncPushIfOnline().catch(console.error)
   return task
 }
 
 export async function updateTask(id: string, patch: Partial<TaskInput>): Promise<void> {
   await db.tasks.update(id, touch(patch))
+  syncPushIfOnline().catch(console.error)
 }
 
 export async function setTaskArchived(id: string, archived: boolean): Promise<void> {
   await db.tasks.update(id, touch({ archived: archived ? 1 : 0 }))
+  syncPushIfOnline().catch(console.error)
 }
 
 /** Suppression logique de la tâche, de ses récurrences et de ses créneaux futurs. */
@@ -86,6 +103,7 @@ export async function deleteTask(id: string): Promise<void> {
       .filter((s) => s.date >= t && s.status === 'planned')
       .modify(touch({ deleted: 1 as const }))
   })
+  syncPushIfOnline().catch(console.error)
 }
 
 /* ------------------------------------------------------------------ */
@@ -122,6 +140,7 @@ export async function deleteRecurrence(id: string): Promise<void> {
       .filter((s) => s.date >= t && s.status === 'planned')
       .modify(touch({ deleted: 1 as const }))
   })
+  syncPushIfOnline().catch(console.error)
 }
 
 /**
@@ -256,6 +275,7 @@ export async function setSlotStatus(item: PlanItem, status: SlotStatus): Promise
 export async function deleteOccurrence(item: PlanItem): Promise<void> {
   const slot = await materialize(item)
   await db.slots.update(slot.id, touch({ deleted: 1 as const }))
+  syncPushIfOnline().catch(console.error)
 }
 
 /* ------------------------------------------------------------------ */
@@ -333,6 +353,7 @@ export async function finishSession(id: string): Promise<Session> {
 
 export async function cancelSession(id: string): Promise<void> {
   await db.sessions.update(id, touch({ deleted: 1 as const }))
+  syncPushIfOnline().catch(console.error)
 }
 
 export async function updateSessionDuration(id: string, durationMin: number): Promise<void> {

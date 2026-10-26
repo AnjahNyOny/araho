@@ -30,14 +30,67 @@ export function subscribeSyncState(fn: (state: SyncState) => void) {
   }
 }
 
-/** Pousse les données locales non synchronisées ou existantes vers Supabase */
+/** Pousse les données locales non synchronisées ou existantes vers Supabase, et supprime les enregistrements effacés */
 export async function pushToSupabase(userId: string): Promise<void> {
   if (!supabase) return
 
-  // 1. Tasks
+  // 0. Migration transparente des données locales orphelines vers l'utilisateur connecté
   const localTasks = await db.tasks.toArray()
-  if (localTasks.length > 0) {
-    const payload = localTasks.map((t) => ({
+  for (const t of localTasks) {
+    if (t.userId === 'local' || t.userId === 'local-user') {
+      await db.tasks.update(t.id, { userId })
+      t.userId = userId
+    }
+  }
+
+  const localRecs = await db.recurrences.toArray()
+  for (const r of localRecs) {
+    if (r.userId === 'local' || r.userId === 'local-user') {
+      await db.recurrences.update(r.id, { userId })
+      r.userId = userId
+    }
+  }
+
+  const localSlots = await db.slots.toArray()
+  for (const s of localSlots) {
+    if (s.userId === 'local' || s.userId === 'local-user') {
+      await db.slots.update(s.id, { userId })
+      s.userId = userId
+    }
+  }
+
+  const localSessions = await db.sessions.toArray()
+  for (const s of localSessions) {
+    if (s.userId === 'local' || s.userId === 'local-user') {
+      await db.sessions.update(s.id, { userId })
+      s.userId = userId
+    }
+  }
+
+  const localNotes = await db.notes.toArray()
+  for (const n of localNotes) {
+    if (n.userId === 'local' || n.userId === 'local-user') {
+      await db.notes.update(n.id, { userId })
+      n.userId = userId
+    }
+  }
+
+  // 1. Tasks
+  const deletedTasks = localTasks.filter((t) => t.deleted === 1)
+  const activeTasks = localTasks.filter((t) => t.deleted !== 1)
+
+  if (deletedTasks.length > 0) {
+    const ids = deletedTasks.map((t) => t.id)
+    const { error } = await supabase.from('tasks').delete().in('id', ids)
+    if (!error) {
+      await db.tasks.bulkDelete(ids)
+    } else {
+      console.error('Sync delete tasks error:', error)
+    }
+  }
+
+  if (activeTasks.length > 0) {
+    const payload = activeTasks.map((t) => ({
       id: t.id,
       user_id: userId,
       name: t.name,
@@ -54,9 +107,21 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 
   // 2. Recurrences
-  const localRecs = await db.recurrences.toArray()
-  if (localRecs.length > 0) {
-    const payload = localRecs.map((r) => ({
+  const deletedRecs = localRecs.filter((r) => r.deleted === 1)
+  const activeRecs = localRecs.filter((r) => r.deleted !== 1)
+
+  if (deletedRecs.length > 0) {
+    const ids = deletedRecs.map((r) => r.id)
+    const { error } = await supabase.from('recurrences').delete().in('id', ids)
+    if (!error) {
+      await db.recurrences.bulkDelete(ids)
+    } else {
+      console.error('Sync delete recurrences error:', error)
+    }
+  }
+
+  if (activeRecs.length > 0) {
+    const payload = activeRecs.map((r) => ({
       id: r.id,
       user_id: userId,
       task_id: r.taskId,
@@ -71,9 +136,21 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 
   // 3. Slots
-  const localSlots = await db.slots.toArray()
-  if (localSlots.length > 0) {
-    const payload = localSlots.map((s) => ({
+  const deletedSlots = localSlots.filter((s) => s.deleted === 1)
+  const activeSlots = localSlots.filter((s) => s.deleted !== 1)
+
+  if (deletedSlots.length > 0) {
+    const ids = deletedSlots.map((s) => s.id)
+    const { error } = await supabase.from('slots').delete().in('id', ids)
+    if (!error) {
+      await db.slots.bulkDelete(ids)
+    } else {
+      console.error('Sync delete slots error:', error)
+    }
+  }
+
+  if (activeSlots.length > 0) {
+    const payload = activeSlots.map((s) => ({
       id: s.id,
       user_id: userId,
       task_id: s.taskId,
@@ -89,9 +166,21 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 
   // 4. Sessions
-  const localSessions = await db.sessions.toArray()
-  if (localSessions.length > 0) {
-    const payload = localSessions.map((s) => ({
+  const deletedSessions = localSessions.filter((s) => s.deleted === 1)
+  const activeSessions = localSessions.filter((s) => s.deleted !== 1)
+
+  if (deletedSessions.length > 0) {
+    const ids = deletedSessions.map((s) => s.id)
+    const { error } = await supabase.from('sessions').delete().in('id', ids)
+    if (!error) {
+      await db.sessions.bulkDelete(ids)
+    } else {
+      console.error('Sync delete sessions error:', error)
+    }
+  }
+
+  if (activeSessions.length > 0) {
+    const payload = activeSessions.map((s) => ({
       id: s.id,
       user_id: userId,
       task_id: s.taskId,
@@ -107,9 +196,21 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 
   // 5. Notes
-  const localNotes = await db.notes.toArray()
-  if (localNotes.length > 0) {
-    const payload = localNotes.map((n) => ({
+  const deletedNotes = localNotes.filter((n) => n.deleted === 1)
+  const activeNotes = localNotes.filter((n) => n.deleted !== 1)
+
+  if (deletedNotes.length > 0) {
+    const ids = deletedNotes.map((n) => n.id)
+    const { error } = await supabase.from('notes').delete().in('id', ids)
+    if (!error) {
+      await db.notes.bulkDelete(ids)
+    } else {
+      console.error('Sync delete notes error:', error)
+    }
+  }
+
+  if (activeNotes.length > 0) {
+    const payload = activeNotes.map((n) => ({
       id: n.id,
       user_id: userId,
       session_id: n.sessionId,
@@ -126,14 +227,18 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 }
 
-/** Récupère les données distantes de Supabase et met à jour Dexie */
+/** Récupère les données distantes de Supabase et met à jour Dexie sans réanimer les éléments supprimés */
 export async function pullFromSupabase(userId: string): Promise<void> {
   if (!supabase) return
 
   // 1. Tasks
   const { data: remoteTasks } = await supabase.from('tasks').select('*').eq('user_id', userId)
   if (remoteTasks) {
+    const remoteIds = new Set(remoteTasks.map((r) => r.id))
     for (const r of remoteTasks) {
+      const existing = await db.tasks.get(r.id)
+      if (existing && existing.deleted === 1) continue // Était supprimé localement
+
       const local: Task = {
         id: r.id,
         userId: r.user_id,
@@ -150,12 +255,24 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       }
       await db.tasks.put(local)
     }
+
+    // Supprimer localement les tâches qui ont été supprimées sur Supabase
+    const allLocal = await db.tasks.toArray()
+    for (const lt of allLocal) {
+      if (lt.userId === userId && !remoteIds.has(lt.id)) {
+        await db.tasks.delete(lt.id)
+      }
+    }
   }
 
   // 2. Recurrences
   const { data: remoteRecs } = await supabase.from('recurrences').select('*').eq('user_id', userId)
   if (remoteRecs) {
+    const remoteIds = new Set(remoteRecs.map((r) => r.id))
     for (const r of remoteRecs) {
+      const existing = await db.recurrences.get(r.id)
+      if (existing && existing.deleted === 1) continue
+
       const local: Recurrence = {
         id: r.id,
         userId: r.user_id,
@@ -171,12 +288,23 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       }
       await db.recurrences.put(local)
     }
+
+    const allLocal = await db.recurrences.toArray()
+    for (const lr of allLocal) {
+      if (lr.userId === userId && !remoteIds.has(lr.id)) {
+        await db.recurrences.delete(lr.id)
+      }
+    }
   }
 
   // 3. Slots
   const { data: remoteSlots } = await supabase.from('slots').select('*').eq('user_id', userId)
   if (remoteSlots) {
+    const remoteIds = new Set(remoteSlots.map((r) => r.id))
     for (const r of remoteSlots) {
+      const existing = await db.slots.get(r.id)
+      if (existing && existing.deleted === 1) continue
+
       const local: Slot = {
         id: r.id,
         userId: r.user_id,
@@ -192,12 +320,23 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       }
       await db.slots.put(local)
     }
+
+    const allLocal = await db.slots.toArray()
+    for (const ls of allLocal) {
+      if (ls.userId === userId && !remoteIds.has(ls.id)) {
+        await db.slots.delete(ls.id)
+      }
+    }
   }
 
   // 4. Sessions
   const { data: remoteSessions } = await supabase.from('sessions').select('*').eq('user_id', userId)
   if (remoteSessions) {
+    const remoteIds = new Set(remoteSessions.map((r) => r.id))
     for (const r of remoteSessions) {
+      const existing = await db.sessions.get(r.id)
+      if (existing && existing.deleted === 1) continue
+
       const local: Session = {
         id: r.id,
         userId: r.user_id,
@@ -217,12 +356,23 @@ export async function pullFromSupabase(userId: string): Promise<void> {
       }
       await db.sessions.put(local)
     }
+
+    const allLocal = await db.sessions.toArray()
+    for (const ls of allLocal) {
+      if (ls.userId === userId && !remoteIds.has(ls.id)) {
+        await db.sessions.delete(ls.id)
+      }
+    }
   }
 
   // 5. Notes
   const { data: remoteNotes } = await supabase.from('notes').select('*').eq('user_id', userId)
   if (remoteNotes) {
+    const remoteIds = new Set(remoteNotes.map((r) => r.id))
     for (const r of remoteNotes) {
+      const existing = await db.notes.get(r.id)
+      if (existing && existing.deleted === 1) continue
+
       const local: Note = {
         id: r.id,
         userId: r.user_id,
@@ -239,6 +389,13 @@ export async function pullFromSupabase(userId: string): Promise<void> {
         deleted: 0,
       }
       await db.notes.put(local)
+    }
+
+    const allLocal = await db.notes.toArray()
+    for (const ln of allLocal) {
+      if (ln.userId === userId && !remoteIds.has(ln.id)) {
+        await db.notes.delete(ln.id)
+      }
     }
   }
 }

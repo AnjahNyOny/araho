@@ -455,17 +455,32 @@ export async function exportAll(): Promise<BackupFile> {
   }
 }
 
-/** Fusion "last-write-wins" : même logique que la future sync serveur. */
-export async function importAll(file: BackupFile): Promise<number> {
-  if (file?.app !== 'araho' || !file.data) throw new Error('Fichier de sauvegarde invalide')
+/** Fusion "last-write-wins" : accepte aussi bien le format exporté que des plannings personnalisés. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export async function importAll(file: any): Promise<number> {
+  const data = file?.data ?? file
+  if (!data || (!data.tasks && !data.recurrences && !data.slots && !data.sessions && !data.notes)) {
+    throw new Error('Fichier de sauvegarde invalide')
+  }
   let count = 0
+  const now = Date.now()
   const tables = [db.tasks, db.recurrences, db.slots, db.sessions, db.notes] as const
   await db.transaction('rw', [...tables], async () => {
     for (const table of tables) {
-      const incoming = (file.data[table.name as keyof BackupFile['data']] ?? []) as BaseRecord[]
-      for (const rec of incoming) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const incoming = (data[table.name as keyof BackupFile['data']] ?? []) as any[]
+      for (const raw of incoming) {
+        const rec = {
+          ...raw,
+          userId: raw.userId ?? 'local-user',
+          createdAt: typeof raw.createdAt === 'number' ? raw.createdAt : now,
+          updatedAt: typeof raw.updatedAt === 'number' ? raw.updatedAt : now,
+          deleted: raw.deleted === 1 ? 1 : 0,
+          description: raw.description ?? '',
+          archived: raw.archived === true || raw.archived === 1 ? 1 : 0,
+        }
         const current = (await table.get(rec.id)) as BaseRecord | undefined
-        if (!current || current.updatedAt < rec.updatedAt) {
+        if (!current || current.updatedAt <= rec.updatedAt) {
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
           await table.put(rec as any)
           count++

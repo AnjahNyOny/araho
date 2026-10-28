@@ -4,9 +4,10 @@ import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronDown, Pause, Play, Square, X, Target, Trophy } from 'lucide-react'
 import { ProgressRing } from '../../components/ProgressRing'
 import { TaskIcon } from '../../components/ui'
-import { useActiveSession, useNow, useTask } from '../../db/hooks'
+import { PaceTag, TrackItems } from '../../components/Track'
+import { useActiveSession, useNow, useTask, useTrackProgress } from '../../db/hooks'
 import * as repo from '../../db/repo'
-import { formatClock, formatDuration } from '../../lib/date'
+import { formatClock, formatDuration, today } from '../../lib/date'
 import { playCompletionChime, notifySessionComplete, requestNotificationPermission } from '../../lib/sound'
 import { useRef } from 'react'
 
@@ -21,6 +22,10 @@ export function SessionPage() {
     () => (session ? repo.getLastNextStep(session.taskId) : ''),
     [session?.taskId],
   )
+  const day = session?.date ?? today()
+  const track = useTrackProgress(session?.taskId, day)
+  // « Continuer sur la suite » : demandé une fois tout ce qui est prévu aujourd'hui coché
+  const [showAhead, setShowAhead] = useState(false)
 
   useWakeLock(!!session && !session.pausedAt)
 
@@ -116,6 +121,38 @@ export function SessionPage() {
           <div className="status-banner success session-reached animate-in">
             <span>Objectif atteint ! Prends un instant pour documenter ce que tu as appris.</span>
           </div>
+        )}
+
+        {track && (
+          <section className="session-track animate-in" aria-label="Au programme">
+            <div className="section-head">
+              <div className="group-title">Au programme</div>
+              <PaceTag progress={track} />
+            </div>
+            {track.today.length > 0 && (
+              <div className="group">
+                <TrackItems items={track.today} today={day} idPrefix="session-track" />
+              </div>
+            )}
+            {track.today.every((it) => it.checked) && track.upcoming.length > 0 && (
+              showAhead ? (
+                <div className="group mt-4">
+                  <TrackItems items={track.upcoming} today={day} idPrefix="session-track" />
+                </div>
+              ) : (
+                <div className="group track-continue mt-4">
+                  <p className="small">
+                    {track.today.length > 0 ? 'Tout est fait pour aujourd’hui.' : 'Rien de prévu aujourd’hui.'}{' '}
+                    <span className="muted">Continuer sur la suite du parcours ?</span>
+                  </p>
+                  <button className="btn btn-secondary btn-sm" onClick={() => setShowAhead(true)} id="session-track-continue">
+                    Continuer sur la suite
+                  </button>
+                </div>
+              )
+            )}
+            {track.next === null && <p className="group-footer">Parcours terminé.</p>}
+          </section>
         )}
 
         {lastNextStep && (

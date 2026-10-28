@@ -18,6 +18,7 @@ import type {
   SlotStatus,
   Task,
   TaskInput,
+  TrackProgress,
 } from './types'
 import { dayOfWeek, today, type ISODate } from '../lib/date'
 import { uuid } from '../lib/id'
@@ -474,23 +475,45 @@ export async function getLastNextStep(taskId: string, excludeSessionId?: string)
 }
 
 /* ------------------------------------------------------------------ */
-/* Listes de validation                                                */
+/* Listes à cocher : validations de phase et parcours                  */
 /* ------------------------------------------------------------------ */
 
-/** Listes de validation d'une tâche, regroupées et triées par échéance. */
+const byPosition = (a: ChecklistItem, b: ChecklistItem) =>
+  (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999') || a.position - b.position
+
+/** Listes d'une tâche, regroupées et triées par échéance. */
 export async function listChecklistGroups(taskId: string): Promise<ChecklistGroup[]> {
   const items = (await db.checklistItems.where('taskId').equals(taskId).toArray()).filter(alive)
   const groups = new Map<string, ChecklistGroup>()
   for (const it of items) {
     let g = groups.get(it.groupId)
     if (!g) {
-      g = { groupId: it.groupId, groupTitle: it.groupTitle, dueDate: it.dueDate, items: [] }
+      g = { groupId: it.groupId, groupTitle: it.groupTitle, kind: it.kind ?? 'validation', dueDate: null, items: [] }
       groups.set(it.groupId, g)
     }
     g.items.push(it)
+    if (it.dueDate && (!g.dueDate || it.dueDate > g.dueDate)) g.dueDate = it.dueDate
   }
-  for (const g of groups.values()) g.items.sort((a, b) => a.position - b.position)
+  for (const g of groups.values()) g.items.sort(byPosition)
   return [...groups.values()].sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
+}
+
+/** Parcours d'une tâche à la date `date` : ce qui est prévu, l'avance et le retard. */
+export async function getTrackProgress(taskId: string, date: ISODate = today()): Promise<TrackProgress | null> {
+  const items = (await db.checklistItems.where('taskId').equals(taskId).toArray())
+    .filter((it) => alive(it) && it.kind === 'track')
+    .sort(byPosition)
+  if (!items.length) return null
+  const due = (it: ChecklistItem) => it.dueDate ?? date
+  return {
+    today: items.filter((it) => (due(it) < date && !it.checked) || due(it) === date),
+    upcoming: items.filter((it) => due(it) > date),
+    next: items.find((it) => !it.checked) ?? null,
+    ahead: items.filter((it) => it.checked && due(it) > date).length,
+    late: items.filter((it) => !it.checked && due(it) < date).length,
+    total: items.length,
+    done: items.filter((it) => it.checked).length,
+  }
 }
 
 export async function setChecklistItemChecked(id: string, checked: boolean): Promise<void> {
@@ -537,7 +560,10 @@ export async function exportAll(): Promise<BackupFile> {
  * Fusion et restauration : accepte aussi bien le format exporté que des plannings personnalisés.
  * Lors d'une réimportation, la progression locale est conservée : statut d'un créneau
  * déjà fait ou sauté, case déjà cochée.
- * Directive optionnelle `archiveTasksNotIn` : archive toutes les autres tâches actives.
+ * Directives optionnelles :
+ * - `archiveTasksNotIn` : archive toutes les autres tâches actives ;
+ * - `replaceChecklistGroups` : dans ces listes, supprime les éléments absents du fichier
+ *   (élément retiré du plan).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function importAll(file: any): Promise<number> {
@@ -616,6 +642,18 @@ export async function importAll(file: any): Promise<number> {
       const toArchive = (await db.tasks.toArray()).filter((t) => alive(t) && !t.archived && !keep.has(t.id))
       for (const t of toArchive) {
         await db.tasks.update(t.id, touch({ archived: 1 as const }))
+        count++
+      }
+    }
+
+    if (Array.isArray(data.replaceChecklistGroups)) {
+      const groups = new Set<string>(data.replaceChecklistGroups)
+      const incoming = new Set<string>((data.checklistItems ?? []).map((it: { id: string }) => it.id))
+      const stale = (await db.checklistItems.toArray()).filter(
+        (it) => alive(it) && groups.has(it.groupId) && !incoming.has(it.id),
+      )
+      for (const it of stale) {
+        await db.checklistItems.update(it.id, touch({ deleted: 1 as const }))
         count++
       }
     }

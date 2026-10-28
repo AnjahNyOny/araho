@@ -47,6 +47,10 @@ export function useChecklistGroups(taskId: string | undefined) {
   return useLiveQuery(() => (taskId ? repo.listChecklistGroups(taskId) : []), [taskId])
 }
 
+export function useTrackProgress(taskId: string | undefined, date: ISODate) {
+  return useLiveQuery(() => (taskId ? repo.getTrackProgress(taskId, date) : null), [taskId, date])
+}
+
 export function useRecurrences(taskId: string | undefined) {
   return useLiveQuery(() => (taskId ? repo.listRecurrences(taskId) : []), [taskId])
 }

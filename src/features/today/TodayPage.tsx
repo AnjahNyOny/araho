@@ -12,7 +12,7 @@ import {
   FastForward,
 } from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
-import { useActiveSession, useDayPlan, useNow, useSessions, useTaskMap, useTasks, useNotes } from '../../db/hooks'
+import { useActiveSession, useDayPlan, useNow, useSessions, useTaskMap, useTasks, useNotes, useTrackProgress } from '../../db/hooks'
 import { elapsedMs, startSession, updateOccurrence } from '../../db/repo'
 import type { PlanItem, Task } from '../../db/types'
 import {
@@ -379,11 +379,14 @@ function SlotRow({
   const done = item.status === 'done'
   const skipped = item.status === 'skipped'
   const running = activeMs !== null
+  const track = useTrackProgress(task.id, item.date)
 
   const range = `${minutesToTime(item.startMin)} – ${minutesToTime(item.startMin + item.durationMin)}`
+  // Prochain élément du parcours à la place de la durée, quand il y en a un
+  const detail = !done && !skipped && track?.next ? track.next.label : formatDuration(item.durationMin)
   const sub = running
     ? `${paused ? 'En pause' : 'En cours'} · ${formatClock(activeMs)} / ${formatDuration(item.durationMin)}`
-    : `${range} · ${formatDuration(item.durationMin)}${skipped ? ' · Sauté' : ''}`
+    : `${range} · ${detail}${skipped ? ' · Sauté' : ''}`
 
   return (
     <div

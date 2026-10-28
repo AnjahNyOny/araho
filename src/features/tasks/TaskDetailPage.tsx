@@ -3,7 +3,8 @@ import { Link, useNavigate, useParams } from 'react-router-dom'
 import { ChevronLeft, Play, Pencil, Archive, ArchiveRestore, Trash2, Repeat, Plus, BookOpen, FileDown, Check } from 'lucide-react'
 import { NoteCard } from '../journal/NoteCard'
 import { TaskIcon, EmptyState, Section } from '../../components/ui'
-import { useActiveSession, useChecklistGroups, useNotes, useRecurrences, useSessions, useTask } from '../../db/hooks'
+import { PaceTag, TrackItems } from '../../components/Track'
+import { useActiveSession, useChecklistGroups, useNotes, useRecurrences, useSessions, useTask, useTrackProgress } from '../../db/hooks'
 import { exportNotesToMarkdown } from '../../lib/exportMarkdown'
 import * as repo from '../../db/repo'
 import { computeTaskStats } from '../../db/stats'
@@ -19,6 +20,7 @@ export function TaskDetailPage() {
   const notes = useNotes(taskId)
   const recurrences = useRecurrences(taskId)
   const checklists = useChecklistGroups(taskId)
+  const track = useTrackProgress(taskId, today())
   const active = useActiveSession()
   const [editing, setEditing] = useState(false)
   const [planning, setPlanning] = useState(false)
@@ -77,7 +79,17 @@ export function TaskDetailPage() {
         </button>
       </div>
 
-      {checklists?.map((g) => {
+      {checklists?.filter((g) => g.kind === 'track').map((g, i) => (
+        <Section
+          key={g.groupId}
+          title={`Parcours ${g.groupTitle} · ${g.items.filter((it) => it.checked).length}/${g.items.length}`}
+          action={i === 0 && track ? <PaceTag progress={track} /> : undefined}
+        >
+          <TrackItems items={g.items} today={today()} idPrefix="track" />
+        </Section>
+      ))}
+
+      {checklists?.filter((g) => g.kind === 'validation').map((g) => {
         const done = g.items.filter((it) => it.checked).length
         return (
           <Section

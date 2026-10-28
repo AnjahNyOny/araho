@@ -815,3 +815,61 @@
   text-transform: none;
   letter-spacing: 0;
 }
+
+/* ===================== Parcours ===================== */
+.track-item.is-checked .cell-body {
+  color: var(--label-2);
+  text-decoration: line-through;
+  text-decoration-color: var(--label-3);
+}
+
+.track-day {
+  flex-shrink: 0;
+  font-size: var(--fs-note);
+  color: var(--label-3);
+  font-variant-numeric: tabular-nums;
+}
+
+.track-day.is-late {
+  color: var(--danger);
+}
+
+.track-day.is-ahead {
+  color: var(--success);
+}
+
+/* Avance / retard */
+.pace {
+  display: inline-flex;
+  align-items: center;
+  height: 22px;
+  padding: 0 var(--sp-2);
+  border-radius: var(--r-pill);
+  background: var(--fill);
+  color: var(--label-2);
+  font-size: var(--fs-note);
+  font-weight: var(--fw-bold);
+  font-family: var(--font);
+  font-style: normal;
+  white-space: nowrap;
+}
+
+.pace.is-ahead {
+  color: var(--success);
+  background: color-mix(in srgb, var(--success) 12%, transparent);
+}
+
+.pace.is-late {
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger) 10%, transparent);
+}
+
+/* Invitation à continuer sur la suite du parcours */
+.track-continue {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  text-align: center;
+}

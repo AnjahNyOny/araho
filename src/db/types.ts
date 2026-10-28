@@ -82,14 +82,23 @@ export interface Note extends BaseRecord {
   tags: string[]
 }
 
-/** Élément d'une liste de validation (ex. fin de phase d'un plan d'apprentissage). */
+/**
+ * - `validation` : liste de fin de phase, une échéance commune.
+ * - `track` : parcours d'une tâche, chaque élément prévu un jour donné ;
+ *   on peut avancer plus vite que prévu (avance / retard).
+ */
+export type ChecklistKind = 'validation' | 'track'
+
+/** Élément d'une liste à cocher (validation de phase ou parcours d'un bloc). */
 export interface ChecklistItem extends BaseRecord {
-  /** Regroupe les éléments d'une même liste (ex. "plan-phase-1"). */
+  /** Regroupe les éléments d'une même liste (ex. "plan-phase-1", "plan-s01-bloc2"). */
   groupId: string
   groupTitle: string
+  /** Absent sur les anciens enregistrements : vaut alors `validation`. */
+  kind?: ChecklistKind
   /** Tâche sur laquelle la liste s'affiche, ou null. */
   taskId: string | null
-  /** Échéance de la liste (fin de phase), ou null. */
+  /** Échéance (validation) ou jour prévu de l'élément (parcours), ou null. */
   dueDate: ISODate | null
   position: number
   label: string
@@ -100,11 +109,29 @@ export interface ChecklistItem extends BaseRecord {
 export interface ChecklistGroup {
   groupId: string
   groupTitle: string
+  kind: ChecklistKind
+  /** Dernière date prévue de la liste. */
   dueDate: ISODate | null
   items: ChecklistItem[]
 }
 
-export type TaskInput =Pick<Task, 'name' | 'description' | 'color' | 'icon' | 'dailyGoalMin'>
+/** État du parcours d'une tâche à une date donnée. */
+export interface TrackProgress {
+  /** À faire aujourd'hui : éléments prévus jusqu'à aujourd'hui (retard compris) et ceux cochés aujourd'hui. */
+  today: ChecklistItem[]
+  /** Éléments prévus après aujourd'hui, dans l'ordre. */
+  upcoming: ChecklistItem[]
+  /** Prochain élément non coché. */
+  next: ChecklistItem | null
+  /** Éléments futurs déjà cochés. */
+  ahead: number
+  /** Éléments passés non cochés. */
+  late: number
+  total: number
+  done: number
+}
+
+export type TaskInput = Pick<Task, 'name' | 'description' | 'color' | 'icon' | 'dailyGoalMin'>
 
 export interface ScheduleInput {
   daysOfWeek: number[]

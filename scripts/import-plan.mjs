@@ -8,7 +8,15 @@
  * - 4 tâches (Bloc 1, Bloc 2, Bloc 3, Bilan) dont la description donne les objectifs
  *   et le livrable des semaines importées ;
  * - un créneau par session et par jour des semaines demandées ;
+ * - un parcours par bloc et par semaine : éléments à cocher, chacun prévu un jour ;
  * - les listes de validation de toutes les phases, sur la tâche Bilan.
+ *
+ * Parcours détaillé : écrire dans le plan, n'importe où, une liste sous un titre
+ *   ### S2 · Bloc 2
+ *   - [ ] Lun : Parcours de tableau, principe
+ *   - [ ] LeetCode 1 — Two Sum          (sans jour : même jour que l'élément précédent)
+ * Une liste sans aucun jour est répartie sur les jours où le bloc a lieu.
+ * Sans liste, le parcours est tiré des tableaux du plan.
  * Les identifiants sont stables : réimporter met à jour sans dupliquer, et l'app conserve
  * les créneaux déjà faits ou sautés ainsi que les cases déjà cochées.
  */
@@ -79,7 +87,45 @@ const toMin = (h, m) => Number(h) * 60 + Number(m || 0)
 /* Lecture du Markdown                                                 */
 /* ------------------------------------------------------------------ */
 
-const md = readFileSync(planPath, 'utf8')
+/** Retire la mise en forme Markdown (gras, code) pour l'affichage dans l'app. */
+const clean = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\*(.+?)\*/g, '$1').trim()
+
+const rawMd = readFileSync(planPath, 'utf8')
+
+/* Listes de parcours « ### S2 · Bloc 2 » : extraites puis retirées du texte, pour ne pas
+   se mélanger aux listes de validation de phase. */
+const BLOC_KEYS = [[/bloc\s*1/i, 'bloc1'], [/bloc\s*2/i, 'bloc2'], [/bloc\s*3/i, 'bloc3'], [/bilan/i, 'bilan']]
+const trackLists = new Map() // "2:bloc2" → [{ day, label, checked }]
+const keptLines = []
+{
+  const lines = rawMd.split('\n')
+  for (let i = 0; i < lines.length; i++) {
+    const h = lines[i].match(/^###\s+S(\d+)\s*[·:—-]\s*(.+)$/)
+    const key = h && BLOC_KEYS.find(([re]) => re.test(h[2]))?.[1]
+    if (!key) {
+      keptLines.push(lines[i])
+      continue
+    }
+    const items = []
+    let j = i + 1
+    for (; j < lines.length; j++) {
+      const m = lines[j].match(/^- \[( |x)\] (.+)$/)
+      if (m) items.push({ ...splitDay(m[2]), checked: m[1] === 'x' })
+      else if (lines[j].trim()) break
+    }
+    trackLists.set(`${Number(h[1])}:${key}`, items)
+    i = j - 1
+  }
+}
+const md = keptLines.join('\n')
+
+/** « Lun 9 : texte » → { day: 1, label: "texte" } ; sans préfixe de jour, day = null. */
+function splitDay(text) {
+  const m = text.match(/^(lun|mar|mer|jeu|ven|sam|dim)[a-zé]*\.?(?:\s+\d{1,2}(?:er)?)?\s*:\s*(.+)$/i)
+  if (!m) return { day: null, label: clean(text) }
+  return { day: ['dim', 'lun', 'mar', 'mer', 'jeu', 'ven', 'sam'].indexOf(m[1].toLowerCase()), label: clean(m[2]) }
+}
+
 const sections = md.split(/^## /m).slice(1).map((s) => {
   const nl = s.indexOf('\n')
   return { title: s.slice(0, nl).trim(), body: s.slice(nl + 1) }
@@ -111,8 +157,6 @@ function tables(text) {
 const checklist = (text) =>
   [...text.matchAll(/^- \[( |x)\] (.+)$/gm)].map((m) => ({ label: clean(m[2]), checked: m[1] === 'x' }))
 
-/** Retire la mise en forme Markdown (gras, code) pour l'affichage dans l'app. */
-const clean = (s) => s.replace(/\*\*(.+?)\*\*/g, '$1').replace(/`([^`]+)`/g, '$1').replace(/\*(.+?)\*/g, '$1').trim()
 
 const paragraph = (text, prefix) => {
   const line = text.split('\n').find((l) => l.startsWith(prefix))
@@ -213,20 +257,15 @@ function findWeek(n) {
 
 const slots = []
 const desc = { bloc1: [], bloc2: [], bloc3: [], bilan: [] }
+const tracks = [] // { id, title, key, items: [{ date, label, checked }] }
 
 for (const n of weeks) {
   if (n === 0) {
-    for (const date of week0.dates) {
-      for (const key of sessionsFor(0, date)) {
-        slots.push(slot(date, key))
-        // L'objectif du jour va aux sessions de travail ; celui du dimanche (bilan de l'essai) au Bilan
-        if ((key === 'bilan') === (dayOfWeek(date) === 0)) {
-          desc[key].push(`${week0.days[date].label} : ${week0.days[date].text}`)
-        }
-      }
-    }
-    for (const key of SESSION_KEYS) desc[key].unshift(`${week0.title} — ${week0.goal}`)
+    for (const date of week0.dates) for (const key of sessionsFor(0, date)) slots.push(slot(date, key))
+    for (const key of SESSION_KEYS) desc[key].push(`${week0.title} — ${week0.goal}`)
+    desc.bilan.push(`${week0.days[s0End].label} : ${week0.days[s0End].text}`)
     desc.bilan.push('Validation : voir la liste « Semaine 0 » ci-dessous.')
+    addTracks(0, week0.dates, 'S0 · mise en place', null)
     continue
   }
 
@@ -238,17 +277,68 @@ for (const n of weeks) {
   const head = `${week.label} · ${week.range}`
   desc.bloc1.push(`${head} — ${week.bloc1}`)
   desc.bloc2.push(`${head} — ${week.bloc2}`)
-  desc.bloc3.push(`${head} — ${week.bloc3}`)
-  if (week.detail) {
-    for (const d of week.detail) {
-      for (const key of ['bloc1', 'bloc2', 'bloc3']) if (d[key] !== 'Libre') desc[key].push(`${d.label} : ${d[key]}`)
-    }
-  } else {
-    desc.bloc1.push('Sam : révision de la semaine (relire ses notes, refaire de mémoire un exercice difficile)')
-    desc.bloc3.push('Sam : terminer le livrable')
-  }
-  desc.bloc3.push(`Livrable : ${week.deliverable}`)
+  desc.bloc3.push(`${head} — ${week.bloc3}`, `Livrable : ${week.deliverable}`)
   desc.bilan.push(`${head} — ${phase.title}`, `Objectif de phase : ${phase.goal}`, `Livrable de la semaine : ${week.deliverable}`)
+  addTracks(n, dates, head, week)
+}
+
+/** Parcours de chaque bloc pour une semaine : liste écrite dans le plan, sinon tirée des tableaux. */
+function addTracks(n, dates, title, week) {
+  for (const key of SESSION_KEYS) {
+    const days = dates.filter((d) => sessionsFor(n, d).includes(key))
+    if (!days.length) continue
+    const written = trackLists.get(`${n}:${key}`)
+    const items = written?.length ? placeWritten(written, dates, days) : fallbackTrack(n, key, days, week)
+    if (items.length) tracks.push({ id: `plan-s${pad(n)}-${key}`, title, key, items })
+  }
+}
+
+function placeWritten(list, dates, days) {
+  // Aucun jour indiqué : répartition régulière sur les jours où le bloc a lieu
+  if (list.every((it) => it.day === null)) {
+    return list.map((it, i) => ({ ...it, date: days[Math.floor((i * days.length) / list.length)] }))
+  }
+  let current = days[0]
+  return list.map((it) => {
+    if (it.day !== null) current = dates.find((d) => dayOfWeek(d) === it.day) ?? current
+    return { ...it, date: current }
+  })
+}
+
+function fallbackTrack(n, key, days, week) {
+  if (key === 'bilan') return []
+  const on = (dow) => days.find((d) => dayOfWeek(d) === dow)
+  if (n === 0) {
+    // Objectif du jour → première session de travail du jour (le dimanche relève du Bilan)
+    return days
+      .filter((d) => dayOfWeek(d) !== 0 && sessionsFor(0, d).find((k) => k !== 'bilan') === key)
+      .map((d) => ({ date: d, label: week0.days[d].text, checked: false }))
+  }
+  if (week.detail) {
+    return week.detail
+      .filter((row) => row[key] && row[key] !== 'Libre')
+      .map((row) => ({ date: on(splitDay(`${row.label} : x`).day) ?? days[0], label: row[key], checked: false }))
+  }
+  const friday = on(5) ?? days.at(-1)
+  const saturday = on(6) ?? days.at(-1)
+  if (key === 'bloc1') {
+    return [
+      { date: friday, label: week.bloc1, checked: false },
+      { date: saturday, label: 'Révision de la semaine : relire ses notes, refaire de mémoire un exercice difficile', checked: false },
+    ]
+  }
+  if (key === 'bloc2') return [{ date: days.at(-1), label: week.bloc2, checked: false }]
+  return [
+    { date: friday, label: week.bloc3, checked: false },
+    { date: saturday, label: `Livrable : ${week.deliverable}`, checked: false },
+  ]
+}
+
+/** Identifiant court et stable tiré du contenu (insérer un élément ne décale pas les autres). */
+function hash(s) {
+  let h = 5381
+  for (const c of s) h = ((h * 33) ^ c.codePointAt(0)) >>> 0
+  return h.toString(36)
 }
 
 function slot(date, key) {
@@ -280,11 +370,12 @@ const groups = [
   { id: 'plan-semaine-0', title: week0.title, dueDate: s0End, items: checklist(s0.body) },
   ...phases.map((p) => ({ id: `plan-phase-${p.num}`, title: p.title, dueDate: p.endDate, items: p.checklist })),
 ]
-const checklistItems = groups.flatMap((g) =>
+const validationItems = groups.flatMap((g) =>
   g.items.map((it, i) => ({
     id: `${g.id}-${pad(i + 1)}`,
     groupId: g.id,
     groupTitle: g.title,
+    kind: 'validation',
     taskId: TASK_IDS.bilan,
     dueDate: g.dueDate,
     position: i,
@@ -294,14 +385,41 @@ const checklistItems = groups.flatMap((g) =>
     createdAt: baseTime,
   })),
 )
+const trackItems = tracks.flatMap((t) => {
+  const seen = new Map()
+  return t.items.map((it, i) => {
+    const key = `${it.date}|${it.label}`
+    const occurrence = (seen.get(key) ?? 0) + 1
+    seen.set(key, occurrence)
+    return {
+      id: `${t.id}-${hash(`${key}|${occurrence}`)}`,
+      groupId: t.id,
+      groupTitle: t.title,
+      kind: 'track',
+      taskId: TASK_IDS[t.key],
+      dueDate: it.date,
+      position: i,
+      label: it.label,
+      checked: it.checked ? 1 : 0,
+      checkedAt: null,
+      createdAt: baseTime,
+    }
+  })
+})
+const checklistItems = [...validationItems, ...trackItems]
 
-const data = { tasks, slots, checklistItems }
+const data = { tasks, slots, checklistItems, replaceChecklistGroups: tracks.map((t) => t.id) }
 if (args.includes('--archive-others')) data.archiveTasksNotIn = Object.values(TASK_IDS)
 
 mkdirSync(dirname(outPath), { recursive: true })
 writeFileSync(outPath, JSON.stringify({ app: 'araho', version: 1, exportedAt: new Date().toISOString(), data }, null, 2))
 
 console.log(`✓ ${outPath}`)
-console.log(`  ${tasks.length} tâches, ${slots.length} créneaux (${weeks.map((w) => `S${w}`).join(', ')}), ${checklistItems.length} éléments de validation`)
+console.log(`  ${tasks.length} tâches, ${slots.length} créneaux (${weeks.map((w) => `S${w}`).join(', ')})`)
+for (const t of tracks) {
+  const source = trackLists.get(`${t.id.match(/s(\d+)/)[1] * 1}:${t.key}`)?.length ? 'liste du plan' : 'tableaux du plan'
+  console.log(`  Parcours ${t.title} · ${S[t.key].name} : ${t.items.length} éléments (${source})`)
+}
+console.log(`  ${validationItems.length} éléments de validation de phase`)
 if (data.archiveTasksNotIn) console.log('  Les autres tâches actives seront archivées.')
 console.log('  À importer dans l’app : Réglages → Importer.')

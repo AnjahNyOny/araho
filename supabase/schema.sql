@@ -2,6 +2,7 @@
 -- ARAHO : Schéma Supabase PostgreSQL avec Multi-Utilisateurs & Partage Public
 -- ============================================================================
 -- Exécutez ce script dans le "SQL Editor" de votre tableau de bord Supabase.
+-- Il peut être relancé sans erreur : les règles d'accès existantes sont recréées.
 
 -- 1. EXTENSIONS
 create extension if not exists "pgcrypto";
@@ -16,10 +17,12 @@ create table if not exists public.profiles (
 
 alter table public.profiles enable row level security;
 
+drop policy if exists "Users can view own profile" on public.profiles;
 create policy "Users can view own profile"
   on public.profiles for select
   using (auth.uid() = id);
 
+drop policy if exists "Users can update own profile" on public.profiles;
 create policy "Users can update own profile"
   on public.profiles for update
   using (auth.uid() = id);
@@ -56,18 +59,22 @@ create table if not exists public.tasks (
 
 alter table public.tasks enable row level security;
 
+drop policy if exists "Users can view own tasks" on public.tasks;
 create policy "Users can view own tasks"
   on public.tasks for select
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can insert own tasks" on public.tasks;
 create policy "Users can insert own tasks"
   on public.tasks for insert
   with check (auth.uid() = user_id);
 
+drop policy if exists "Users can update own tasks" on public.tasks;
 create policy "Users can update own tasks"
   on public.tasks for update
   using (auth.uid() = user_id);
 
+drop policy if exists "Users can delete own tasks" on public.tasks;
 create policy "Users can delete own tasks"
   on public.tasks for delete
   using (auth.uid() = user_id);
@@ -87,6 +94,7 @@ create table if not exists public.recurrences (
 
 alter table public.recurrences enable row level security;
 
+drop policy if exists "Users can CRUD own recurrences" on public.recurrences;
 create policy "Users can CRUD own recurrences"
   on public.recurrences for all
   using (auth.uid() = user_id);
@@ -107,6 +115,7 @@ create table if not exists public.slots (
 
 alter table public.slots enable row level security;
 
+drop policy if exists "Users can CRUD own slots" on public.slots;
 create policy "Users can CRUD own slots"
   on public.slots for all
   using (auth.uid() = user_id);
@@ -127,6 +136,7 @@ create table if not exists public.sessions (
 
 alter table public.sessions enable row level security;
 
+drop policy if exists "Users can CRUD own sessions" on public.sessions;
 create policy "Users can CRUD own sessions"
   on public.sessions for all
   using (auth.uid() = user_id);
@@ -148,6 +158,7 @@ create table if not exists public.notes (
 
 alter table public.notes enable row level security;
 
+drop policy if exists "Users can CRUD own notes" on public.notes;
 create policy "Users can CRUD own notes"
   on public.notes for all
   using (auth.uid() = user_id);
@@ -158,6 +169,7 @@ create table if not exists public.checklist_items (
   user_id uuid references auth.users on delete cascade not null default auth.uid(),
   group_id text not null,
   group_title text default '',
+  kind text default 'validation', -- 'validation' (fin de phase) ou 'track' (parcours d'un bloc)
   task_id text references public.tasks(id) on delete cascade,
   due_date date,
   position int default 0,
@@ -168,8 +180,12 @@ create table if not exists public.checklist_items (
   updated_at timestamptz default now()
 );
 
+-- Pour une table créée avant l'ajout des parcours
+alter table public.checklist_items add column if not exists kind text default 'validation';
+
 alter table public.checklist_items enable row level security;
 
+drop policy if exists "Users can CRUD own checklist items" on public.checklist_items;
 create policy "Users can CRUD own checklist items"
   on public.checklist_items for all
   using (auth.uid() = user_id);
@@ -189,6 +205,7 @@ create table if not exists public.shares (
 
 alter table public.shares enable row level security;
 
+drop policy if exists "Users can manage own shares" on public.shares;
 create policy "Users can manage own shares"
   on public.shares for all
   using (auth.uid() = user_id);

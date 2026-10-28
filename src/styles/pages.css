@@ -979,3 +979,9 @@
 .shared-page .cal-hour-row {
   cursor: default;
 }
+
+.session-track {
+  width: 100%;
+  max-width: 420px;
+  text-align: left;
+}

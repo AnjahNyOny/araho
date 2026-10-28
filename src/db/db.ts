@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie'
-import type { Note, Recurrence, Session, Slot, Task } from './types'
+import type { ChecklistItem, Note, Recurrence, Session, Slot, Task } from './types'
 
 export class ArahoDB extends Dexie {
   declare tasks: EntityTable<Task, 'id'>
@@ -7,6 +7,7 @@ export class ArahoDB extends Dexie {
   declare slots: EntityTable<Slot, 'id'>
   declare sessions: EntityTable<Session, 'id'>
   declare notes: EntityTable<Note, 'id'>
+  declare checklistItems: EntityTable<ChecklistItem, 'id'>
 
   constructor() {
     super('araho')
@@ -16,6 +17,9 @@ export class ArahoDB extends Dexie {
       slots: 'id, date, taskId, recurrenceId, updatedAt',
       sessions: 'id, taskId, slotId, status, date, updatedAt',
       notes: 'id, sessionId, taskId, date, updatedAt',
+    })
+    this.version(2).stores({
+      checklistItems: 'id, groupId, taskId, updatedAt',
     })
   }
 }

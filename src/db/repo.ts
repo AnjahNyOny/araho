@@ -6,6 +6,8 @@
 import { db, LOCAL_USER_ID } from './db'
 import type {
   BaseRecord,
+  ChecklistGroup,
+  ChecklistItem,
   Note,
   NoteInput,
   PlanItem,
@@ -105,12 +107,13 @@ export async function setTaskArchived(id: string, archived: boolean): Promise<vo
 
 /** Suppression logique de la tâche, de ses récurrences, créneaux, sessions et notes associés. */
 export async function deleteTask(id: string): Promise<void> {
-  await db.transaction('rw', db.tasks, db.recurrences, db.slots, db.sessions, db.notes, async () => {
+  await db.transaction('rw', [db.tasks, db.recurrences, db.slots, db.sessions, db.notes, db.checklistItems], async () => {
     await db.tasks.update(id, touch({ deleted: 1 as const }))
     await db.recurrences.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
     await db.slots.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
     await db.sessions.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
     await db.notes.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
+    await db.checklistItems.where('taskId').equals(id).modify(touch({ deleted: 1 as const }))
   })
   syncPushIfOnline().catch(console.error)
 }
@@ -471,6 +474,31 @@ export async function getLastNextStep(taskId: string, excludeSessionId?: string)
 }
 
 /* ------------------------------------------------------------------ */
+/* Listes de validation                                                */
+/* ------------------------------------------------------------------ */
+
+/** Listes de validation d'une tâche, regroupées et triées par échéance. */
+export async function listChecklistGroups(taskId: string): Promise<ChecklistGroup[]> {
+  const items = (await db.checklistItems.where('taskId').equals(taskId).toArray()).filter(alive)
+  const groups = new Map<string, ChecklistGroup>()
+  for (const it of items) {
+    let g = groups.get(it.groupId)
+    if (!g) {
+      g = { groupId: it.groupId, groupTitle: it.groupTitle, dueDate: it.dueDate, items: [] }
+      groups.set(it.groupId, g)
+    }
+    g.items.push(it)
+  }
+  for (const g of groups.values()) g.items.sort((a, b) => a.position - b.position)
+  return [...groups.values()].sort((a, b) => (a.dueDate ?? '9999').localeCompare(b.dueDate ?? '9999'))
+}
+
+export async function setChecklistItemChecked(id: string, checked: boolean): Promise<void> {
+  await db.checklistItems.update(id, touch({ checked: checked ? 1 : 0, checkedAt: checked ? Date.now() : null }))
+  syncPushIfOnline().catch(console.error)
+}
+
+/* ------------------------------------------------------------------ */
 /* Sauvegarde / restauration                                           */
 /* ------------------------------------------------------------------ */
 
@@ -484,30 +512,40 @@ export interface BackupFile {
     slots: Slot[]
     sessions: Session[]
     notes: Note[]
+    checklistItems: ChecklistItem[]
   }
 }
 
 export async function exportAll(): Promise<BackupFile> {
-  const [tasks, recurrences, slots, sessions, notes] = await Promise.all([
+  const [tasks, recurrences, slots, sessions, notes, checklistItems] = await Promise.all([
     db.tasks.toArray(),
     db.recurrences.toArray(),
     db.slots.toArray(),
     db.sessions.toArray(),
     db.notes.toArray(),
+    db.checklistItems.toArray(),
   ])
   return {
     app: 'araho',
     version: 1,
     exportedAt: new Date().toISOString(),
-    data: { tasks, recurrences, slots, sessions, notes },
+    data: { tasks, recurrences, slots, sessions, notes, checklistItems },
   }
 }
 
-/** Fusion et restauration : accepte aussi bien le format exporté que des plannings personnalisés. */
+/**
+ * Fusion et restauration : accepte aussi bien le format exporté que des plannings personnalisés.
+ * Lors d'une réimportation, la progression locale est conservée : statut d'un créneau
+ * déjà fait ou sauté, case déjà cochée.
+ * Directive optionnelle `archiveTasksNotIn` : archive toutes les autres tâches actives.
+ */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export async function importAll(file: any): Promise<number> {
   const data = file?.data ?? file
-  if (!data || (!data.tasks && !data.recurrences && !data.slots && !data.sessions && !data.notes)) {
+  if (
+    !data ||
+    (!data.tasks && !data.recurrences && !data.slots && !data.sessions && !data.notes && !data.checklistItems)
+  ) {
     throw new Error('Fichier de sauvegarde invalide')
   }
 
@@ -543,7 +581,7 @@ export async function importAll(file: any): Promise<number> {
   }
   data.sessions = sessionsIncoming
 
-  const tables = [db.tasks, db.recurrences, db.slots, db.sessions, db.notes] as const
+  const tables = [db.tasks, db.recurrences, db.slots, db.sessions, db.notes, db.checklistItems] as const
   await db.transaction('rw', [...tables], async () => {
     for (const table of tables) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -559,7 +597,25 @@ export async function importAll(file: any): Promise<number> {
           description: raw.description ?? '',
           archived: raw.archived === true || raw.archived === 1 ? 1 : 0,
         }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        const existing: any = await table.get(raw.id)
+        if (existing && !existing.deleted) {
+          if (table === db.slots && existing.status !== 'planned') rec.status = existing.status
+          if (table === db.checklistItems && existing.checked) {
+            rec.checked = 1
+            rec.checkedAt = existing.checkedAt
+          }
+        }
         await table.put(rec)
+        count++
+      }
+    }
+
+    if (Array.isArray(data.archiveTasksNotIn)) {
+      const keep = new Set<string>(data.archiveTasksNotIn)
+      const toArchive = (await db.tasks.toArray()).filter((t) => alive(t) && !t.archived && !keep.has(t.id))
+      for (const t of toArchive) {
+        await db.tasks.update(t.id, touch({ archived: 1 as const }))
         count++
       }
     }
@@ -571,8 +627,15 @@ export async function importAll(file: any): Promise<number> {
 }
 
 export async function wipeAll(): Promise<void> {
-  await db.transaction('rw', [db.tasks, db.recurrences, db.slots, db.sessions, db.notes], async () => {
-    await Promise.all([db.tasks.clear(), db.recurrences.clear(), db.slots.clear(), db.sessions.clear(), db.notes.clear()])
+  await db.transaction('rw', [db.tasks, db.recurrences, db.slots, db.sessions, db.notes, db.checklistItems], async () => {
+    await Promise.all([
+      db.tasks.clear(),
+      db.recurrences.clear(),
+      db.slots.clear(),
+      db.sessions.clear(),
+      db.notes.clear(),
+      db.checklistItems.clear(),
+    ])
   })
   if (supabase) {
     try {
@@ -580,6 +643,8 @@ export async function wipeAll(): Promise<void> {
       if (session?.user?.id) {
         // En supprimant les tâches de l'utilisateur, la cascade PostgreSQL supprime recurrences, slots, sessions, notes
         await supabase.from('tasks').delete().eq('user_id', session.user.id)
+        // Les listes sans tâche ne sont pas couvertes par la cascade
+        await supabase.from('checklist_items').delete().eq('user_id', session.user.id)
       }
     } catch (e) {
       console.warn('Wipe Supabase error:', e)

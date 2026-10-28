@@ -1,6 +1,6 @@
 import { db } from './db'
 import { supabase } from '../lib/supabase'
-import type { Task, Slot, Recurrence, Session, Note } from './types'
+import type { Task, Slot, Recurrence, Session, Note, ChecklistItem } from './types'
 
 export type SyncStatus = 'idle' | 'syncing' | 'success' | 'error'
 
@@ -72,6 +72,14 @@ export async function pushToSupabase(userId: string): Promise<void> {
     if (n.userId === 'local' || n.userId === 'local-user') {
       await db.notes.update(n.id, { userId })
       n.userId = userId
+    }
+  }
+
+  const localItems = await db.checklistItems.toArray()
+  for (const it of localItems) {
+    if (it.userId === 'local' || it.userId === 'local-user') {
+      await db.checklistItems.update(it.id, { userId })
+      it.userId = userId
     }
   }
 
@@ -217,6 +225,35 @@ export async function pushToSupabase(userId: string): Promise<void> {
     }))
     const { error } = await supabase.from('notes').upsert(payload, { onConflict: 'id' })
     if (error) console.error('Sync notes error:', error)
+  }
+
+  // 6. Checklist items
+  const isItemDeleted = (it: ChecklistItem) => it.deleted === 1 || (!!it.taskId && !activeTaskIds.has(it.taskId))
+  const deletedItems = localItems.filter(isItemDeleted)
+  const activeItems = localItems.filter((it) => !isItemDeleted(it))
+
+  if (deletedItems.length > 0) {
+    const ids = deletedItems.map((it) => it.id)
+    await supabase.from('checklist_items').delete().in('id', ids)
+    await db.checklistItems.bulkDelete(ids)
+  }
+
+  if (activeItems.length > 0) {
+    const payload = activeItems.map((it) => ({
+      id: it.id,
+      user_id: userId,
+      group_id: it.groupId,
+      group_title: it.groupTitle,
+      task_id: it.taskId,
+      due_date: it.dueDate,
+      position: it.position,
+      label: it.label,
+      checked: Boolean(it.checked),
+      checked_at: it.checkedAt ? new Date(it.checkedAt).toISOString() : null,
+      updated_at: new Date(it.updatedAt).toISOString(),
+    }))
+    const { error } = await supabase.from('checklist_items').upsert(payload, { onConflict: 'id' })
+    if (error) console.error('Sync checklist items error:', error)
   }
 }
 
@@ -389,6 +426,40 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     for (const ln of allLocal) {
       if ((ln.userId === userId || !remoteTaskIds.has(ln.taskId)) && !remoteIds.has(ln.id)) {
         await db.notes.delete(ln.id)
+      }
+    }
+  }
+
+  // 6. Checklist items (data reste null si la table n'a pas encore été créée sur Supabase)
+  const { data: remoteItems } = await supabase.from('checklist_items').select('*').eq('user_id', userId)
+  if (remoteItems) {
+    const remoteIds = new Set(remoteItems.map((r) => r.id))
+    for (const r of remoteItems) {
+      const existing = await db.checklistItems.get(r.id)
+      if (existing && existing.deleted === 1) continue
+
+      const local: ChecklistItem = {
+        id: r.id,
+        userId: r.user_id,
+        groupId: r.group_id,
+        groupTitle: r.group_title || '',
+        taskId: r.task_id,
+        dueDate: r.due_date,
+        position: r.position || 0,
+        label: r.label,
+        checked: r.checked ? 1 : 0,
+        checkedAt: r.checked_at ? new Date(r.checked_at).getTime() : null,
+        createdAt: new Date(r.created_at).getTime(),
+        updatedAt: new Date(r.updated_at).getTime(),
+        deleted: 0,
+      }
+      await db.checklistItems.put(local)
+    }
+
+    const allLocal = await db.checklistItems.toArray()
+    for (const li of allLocal) {
+      if (li.userId === userId && !remoteIds.has(li.id)) {
+        await db.checklistItems.delete(li.id)
       }
     }
   }

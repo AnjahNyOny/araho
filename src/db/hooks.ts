@@ -43,6 +43,10 @@ export function useNotes(taskId?: string) {
   return useLiveQuery(() => repo.listNotes(taskId), [taskId])
 }
 
+export function useChecklistGroups(taskId: string | undefined) {
+  return useLiveQuery(() => (taskId ? repo.listChecklistGroups(taskId) : []), [taskId])
+}
+
 export function useRecurrences(taskId: string | undefined) {
   return useLiveQuery(() => (taskId ? repo.listRecurrences(taskId) : []), [taskId])
 }

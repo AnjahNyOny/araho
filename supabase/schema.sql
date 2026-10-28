@@ -152,6 +152,28 @@ create policy "Users can CRUD own notes"
   on public.notes for all
   using (auth.uid() = user_id);
 
+-- 7b. TABLE CHECKLIST_ITEMS (Listes de validation, ex. fin de phase)
+create table if not exists public.checklist_items (
+  id text primary key,
+  user_id uuid references auth.users on delete cascade not null default auth.uid(),
+  group_id text not null,
+  group_title text default '',
+  task_id text references public.tasks(id) on delete cascade,
+  due_date date,
+  position int default 0,
+  label text not null,
+  checked boolean default false,
+  checked_at timestamptz,
+  created_at timestamptz default now(),
+  updated_at timestamptz default now()
+);
+
+alter table public.checklist_items enable row level security;
+
+create policy "Users can CRUD own checklist items"
+  on public.checklist_items for all
+  using (auth.uid() = user_id);
+
 -- 8. TABLE SHARES (Liens de partage secrets en lecture seule)
 create table if not exists public.shares (
   id uuid primary key default gen_random_uuid(),

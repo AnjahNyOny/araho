@@ -82,7 +82,29 @@ export interface Note extends BaseRecord {
   tags: string[]
 }
 
-export type TaskInput = Pick<Task, 'name' | 'description' | 'color' | 'icon' | 'dailyGoalMin'>
+/** Élément d'une liste de validation (ex. fin de phase d'un plan d'apprentissage). */
+export interface ChecklistItem extends BaseRecord {
+  /** Regroupe les éléments d'une même liste (ex. "plan-phase-1"). */
+  groupId: string
+  groupTitle: string
+  /** Tâche sur laquelle la liste s'affiche, ou null. */
+  taskId: string | null
+  /** Échéance de la liste (fin de phase), ou null. */
+  dueDate: ISODate | null
+  position: number
+  label: string
+  checked: 0 | 1
+  checkedAt: number | null
+}
+
+export interface ChecklistGroup {
+  groupId: string
+  groupTitle: string
+  dueDate: ISODate | null
+  items: ChecklistItem[]
+}
+
+export type TaskInput =Pick<Task, 'name' | 'description' | 'color' | 'icon' | 'dailyGoalMin'>
 
 export interface ScheduleInput {
   daysOfWeek: number[]

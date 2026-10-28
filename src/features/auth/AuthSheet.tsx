@@ -54,7 +54,7 @@ export function AuthSheet({ open, onClose, onSuccess }: Props) {
     >
       <form onSubmit={handleSubmit}>
         {error && (
-          <div className="status-banner danger animate-in" style={{ marginBottom: 16 }}>
+          <div className="status-banner danger animate-in">
             <span>{error}</span>
           </div>
         )}
@@ -99,7 +99,7 @@ export function AuthSheet({ open, onClose, onSuccess }: Props) {
           </div>
         </Section>
 
-        <div className="section" style={{ marginTop: 24 }}>
+        <div className="section">
           <button
             type="submit"
             className="btn btn-primary btn-block btn-lg"
@@ -109,11 +109,10 @@ export function AuthSheet({ open, onClose, onSuccess }: Props) {
           </button>
         </div>
 
-        <div style={{ textAlign: 'center', marginTop: 16 }}>
+        <div className="text-center">
           <button
             type="button"
-            className="btn btn-ghost"
-            style={{ fontSize: 14 }}
+            className="btn btn-ghost small"
             onClick={() => {
               setMode(mode === 'login' ? 'signup' : 'login')
               setError(null)

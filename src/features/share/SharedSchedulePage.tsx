@@ -76,7 +76,7 @@ export function SharedSchedulePage() {
         type: 'busy' as const,
         title: `En session : ${data.activeSession.taskName}`,
         detail: 'Session en cours',
-        color: data.activeSession.taskColor || 'var(--sys-blue)',
+        color: data.activeSession.taskColor || 'var(--accent)',
       }
     }
 
@@ -92,7 +92,7 @@ export function SharedSchedulePage() {
         type: 'busy' as const,
         title: `En créneau : ${task?.name || 'Tâche'}`,
         detail: `Occupé(e) jusqu'à ${endFormatted}`,
-        color: task?.color || 'var(--sys-blue)',
+        color: task?.color || 'var(--accent)',
       }
     }
 
@@ -108,7 +108,7 @@ export function SharedSchedulePage() {
         type: 'free' as const,
         title: 'Actuellement libre',
         detail: `Prochaine activité : ${task?.name || 'Tâche'} à ${startFormatted}`,
-        color: 'var(--sys-green)',
+        color: 'var(--success)',
       }
     }
 
@@ -117,7 +117,7 @@ export function SharedSchedulePage() {
       type: 'free' as const,
       title: 'Actuellement libre',
       detail: 'Aucun créneau restant aujourd’hui',
-      color: 'var(--sys-green)',
+      color: 'var(--success)',
     }
   }, [data, nowMin, tasksMap])
 
@@ -130,9 +130,9 @@ export function SharedSchedulePage() {
 
   if (loading && !data) {
     return (
-      <div className="shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh' }}>
-        <div style={{ textAlign: 'center' }}>
-          <div className="spinner" style={{ margin: '0 auto 12px' }} />
+      <div className="shared-state">
+        <div className="stack gap-3">
+          <div className="spinner" />
           <p className="muted">Chargement du planning partagé…</p>
         </div>
       </div>
@@ -141,30 +141,28 @@ export function SharedSchedulePage() {
 
   if (error || !data) {
     return (
-      <div className="shell" style={{ display: 'grid', placeItems: 'center', minHeight: '100dvh', padding: 20 }}>
-        <div className="group pad" style={{ maxWidth: 400, textAlign: 'center' }}>
-          <Lock size={40} style={{ color: 'var(--sys-red)', margin: '0 auto 12px' }} />
-          <h2 style={{ fontSize: 20, marginBottom: 8 }}>Accès impossible</h2>
-          <p className="muted" style={{ fontSize: 15 }}>{error || 'Ce lien de partage n’est plus actif.'}</p>
+      <div className="shared-state">
+        <div className="group empty">
+          <div className="empty-icon">
+            <Lock size={40} strokeWidth={1.6} />
+          </div>
+          <h2>Accès impossible</h2>
+          <p className="muted">{error || 'Ce lien de partage n’est plus actif.'}</p>
         </div>
       </div>
     )
   }
 
   return (
-    <div className="shell" style={{ maxWidth: 640, margin: '0 auto', paddingBottom: 60 }}>
-      {/* 1. Header Apple Partagé */}
-      <header style={{ padding: '16px 20px 8px', borderBottom: '0.5px solid var(--separator)' }}>
-        <div className="row spread">
-          <div>
-            <div className="caption" style={{ color: 'var(--sys-blue)' }}>
-              Accès lecture seule · {data.label}
-            </div>
-            <h1 style={{ fontSize: 26, fontWeight: 700, letterSpacing: -0.01, marginTop: 2 }}>
-              Planning de {data.ownerName}
-            </h1>
+    <div className="shared-page">
+      {/* 1. En-tête */}
+      <header className="shared-header">
+        <div className="row spread items-start">
+          <div className="grow">
+            <div className="caption">Lecture seule · {data.label}</div>
+            <h1 className="shared-title">Planning de {data.ownerName}</h1>
           </div>
-          <div className="row" style={{ gap: 4 }}>
+          <div className="row gap-1">
             <button
               type="button"
               className="icon-btn"
@@ -186,38 +184,18 @@ export function SharedSchedulePage() {
 
         {/* Badge de disponibilité temps réel */}
         {availabilityStatus && (
-          <div
-            style={{
-              marginTop: 14,
-              padding: '10px 14px',
-              borderRadius: 12,
-              background: 'var(--bg-cell)',
-              border: '0.5px solid var(--separator)',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-            }}
-          >
-            <span
-              style={{
-                width: 10,
-                height: 10,
-                borderRadius: '50%',
-                background: availabilityStatus.color,
-                boxShadow: `0 0 8px ${availabilityStatus.color}`,
-                flexShrink: 0,
-              }}
-            />
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontSize: 15, fontWeight: 600 }}>{availabilityStatus.title}</div>
-              <div className="muted" style={{ fontSize: 13 }}>{availabilityStatus.detail}</div>
+          <div className="group availability">
+            <span className="availability-dot" style={{ '--c': availabilityStatus.color } as CSSProperties} />
+            <div className="grow">
+              <div className="small strong">{availabilityStatus.title}</div>
+              <div className="tiny muted">{availabilityStatus.detail}</div>
             </div>
           </div>
         )}
       </header>
 
       {/* 2. Bandeau 7 jours de la semaine */}
-      <div className="cal-week-strip" style={{ padding: '8px 12px 10px' }} role="tablist">
+      <div className="cal-week-strip" role="tablist">
         {weekDays.map((dStr, idx) => {
           const isSelected = dStr === selectedDate
           const dayDate = new Date(dStr + 'T12:00:00')
@@ -231,7 +209,7 @@ export function SharedSchedulePage() {
               type="button"
               role="tab"
               aria-selected={isSelected}
-              className={`cal-day-cell ${isSelected ? 'is-selected' : ''}`}
+              className={`cal-day-cell ${isSelected ? 'is-selected' : ''} ${dStr === today() ? 'is-today' : ''}`}
               onClick={() => setSelectedDate(dStr)}
             >
               <span className="cal-day-letter">{dayLetter}</span>
@@ -248,7 +226,7 @@ export function SharedSchedulePage() {
       </div>
 
       {/* 4. Timeline horaire en lecture seule */}
-      <div className="cal-timeline-wrap" style={{ height: 'calc(100dvh - 280px)', minHeight: 460 }}>
+      <div className="cal-timeline-wrap">
         <div
           className="cal-timeline"
           style={{ height: TIMELINE_TOP_PAD + (TIMELINE_END_HOUR - TIMELINE_START_HOUR + 1) * HOUR_HEIGHT + 40 }}
@@ -285,15 +263,8 @@ export function SharedSchedulePage() {
             return (
               <div
                 key={item.id}
-                className={`cal-event ${isCompact ? 'is-compact' : 'is-standard'}`}
-                style={
-                  {
-                    '--c': task.color,
-                    top,
-                    height,
-                    cursor: 'default',
-                  } as CSSProperties
-                }
+                className={`cal-event is-readonly ${isCompact ? 'is-compact' : 'is-standard'}`}
+                style={{ '--c': task.color, top, height } as CSSProperties}
               >
                 {isCompact ? (
                   <div className="cal-event-row">
@@ -310,7 +281,7 @@ export function SharedSchedulePage() {
                   </div>
                 ) : (
                   <div className="cal-event-stack">
-                    <div className="row spread" style={{ alignItems: 'flex-start' }}>
+                    <div className="row spread items-start">
                       <span className="cal-event-title truncate">{task.name}</span>
                       {done && (
                         <span className="cal-event-check">

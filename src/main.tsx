@@ -1,7 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 
-// Styles Araho (police système Apple : aucune police à embarquer)
+// Styles Araho (polices système serif et sans : aucune police à embarquer)
 import './styles/tokens.css'
 import './styles/base.css'
 import './components/components.css'

@@ -86,7 +86,7 @@ export function AppShell() {
             <span>{label}</span>
           </NavLink>
         ))}
-        <NavLink to="/settings" className="tab tab-settings" id="nav-settings">
+        <NavLink to="/settings" className="tab" id="nav-settings">
           <Settings size={24} strokeWidth={1.8} />
           <span>Réglages</span>
         </NavLink>
@@ -111,9 +111,9 @@ function SessionDock() {
   return (
     <button className="dock" id="session-dock" onClick={() => navigate('/session')} style={{ '--c': task.color } as CSSProperties}>
       <TaskIcon task={task} size={34} />
-      <div className="grow" style={{ textAlign: 'left' }}>
-        <div className="truncate" style={{ fontWeight: 600, fontSize: 15 }}>{task.name}</div>
-        <div className="tiny muted row" style={{ '--gap': '6px' } as CSSProperties}>
+      <div className="grow">
+        <div className="dock-title truncate">{task.name}</div>
+        <div className="tiny muted row gap-2">
           {session.pausedAt ? <span>En pause</span> : <span className="live-dot" />}
           <span className="tabular">{formatClock(ms)}</span>
         </div>

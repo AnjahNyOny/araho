@@ -208,7 +208,7 @@ export function WeekPage() {
     <div className="cal-container">
       {/* 1. Barre de navigation supérieure style Apple Calendar */}
       <header className="cal-header">
-        <div className="row" style={{ gap: 4 }}>
+        <div className="cal-nav">
           <button
             type="button"
             className="cal-month-btn"
@@ -220,10 +220,9 @@ export function WeekPage() {
           </button>
           <button
             type="button"
-            className="cal-action-btn"
+            className="cal-action-btn is-sm"
             onClick={() => setSelectedDate(addDays(selectedDate, 7))}
             aria-label="Semaine suivante"
-            style={{ width: 28, height: 28 }}
           >
             <ChevronRight size={18} strokeWidth={2.5} />
           </button>
@@ -288,7 +287,7 @@ export function WeekPage() {
               type="button"
               role="tab"
               aria-selected={isSelected}
-              className={`cal-day-cell ${isSelected ? 'is-selected' : ''}`}
+              className={`cal-day-cell ${isSelected ? 'is-selected' : ''} ${dStr === today() ? 'is-today' : ''}`}
               onClick={() => setSelectedDate(dStr)}
               id={`cal-day-${dStr}`}
             >
@@ -390,7 +389,7 @@ export function WeekPage() {
                   <div
                     className={`cal-event ${isDraggingThis ? 'is-dragging' : ''} ${
                       isCompact ? 'is-compact' : 'is-standard'
-                    }`}
+                    } ${skipped ? 'is-skipped' : ''}`}
                     style={
                       {
                         '--c': task.color,
@@ -399,7 +398,6 @@ export function WeekPage() {
                             (dragState.currentStartMin - TIMELINE_START_HOUR * 60) * (HOUR_HEIGHT / 60)
                           : top,
                         height,
-                        opacity: skipped ? 0.45 : 1,
                       } as CSSProperties
                     }
                     onPointerDown={(e) => handlePointerDown(e, item)}
@@ -460,9 +458,9 @@ export function WeekPage() {
                       </div>
                     ) : (
                       <div className="cal-event-stack">
-                        <div className="row spread" style={{ alignItems: 'flex-start' }}>
+                        <div className="row spread items-start">
                           <span className="cal-event-title truncate">{task.name}</span>
-                          <div className="row" style={{ gap: 4 }}>
+                          <div className="row gap-1">
                             {done && (
                               <span className="cal-event-check">
                                 <Check size={14} strokeWidth={3} />
@@ -496,10 +494,10 @@ export function WeekPage() {
         </div>
       ) : (
         /* Vue Liste chronologique */
-        <div style={{ padding: '16px' }}>
+        <div className="cal-list">
           {currentDayItems.length === 0 ? (
-            <div className="week-empty-day" style={{ padding: '24px 8px', justifyContent: 'center', flexDirection: 'column', gap: 12 }}>
-              <span className="muted">Aucune tâche planifiée pour ce jour</span>
+            <div className="empty">
+              <p className="muted">Aucune tâche planifiée pour ce jour</p>
               <button
                 className="btn btn-primary btn-sm"
                 onClick={() => setAddingSlot({ date: selectedDate, startMin: 9 * 60 })}
@@ -517,14 +515,14 @@ export function WeekPage() {
                 return (
                   <div
                     key={item.key}
-                    className={`cell has-icon is-tappable ${skipped ? 'is-skipped' : ''}`}
+                    className={`cell has-icon is-tappable ${done ? 'is-done' : ''} ${skipped ? 'is-skipped' : ''}`}
                     onClick={() => setSelectedSlot(item)}
                     role="button"
                     tabIndex={0}
                   >
                     <TaskIcon task={task} size={34} />
                     <div className="cell-body">
-                      <div className="cell-title truncate" style={done || skipped ? { color: 'var(--label-2)' } : undefined}>
+                      <div className="cell-title truncate">
                         {task.name}
                       </div>
                       <div className="cell-sub tabular">

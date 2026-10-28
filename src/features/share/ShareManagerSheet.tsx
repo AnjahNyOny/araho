@@ -64,11 +64,9 @@ export function ShareManagerSheet({ open, onClose }: Props) {
 
   return (
     <Sheet open={open} onClose={onClose} title="Partager mon planning">
-      <div style={{ marginBottom: 16 }}>
-        <p className="muted" style={{ fontSize: 15, lineHeight: 1.4 }}>
-          Génère un lien secret pour que ta petite amie puisse voir ton planning et savoir quand tu es libre, sans créer de compte.
-        </p>
-      </div>
+      <p className="small muted mb-5">
+        Génère un lien secret pour que ta petite amie puisse voir ton planning et savoir quand tu es libre, sans créer de compte.
+      </p>
 
       <Section title="Nouveau lien de partage">
         <div className="cell">
@@ -82,15 +80,15 @@ export function ShareManagerSheet({ open, onClose }: Props) {
           />
         </div>
         <div className="cell">
-          <span className="cell-body" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <ShieldCheck size={16} color="var(--sys-green)" />
+          <span className="cell-body row gap-2">
+            <ShieldCheck size={16} className="text-success" />
             <span>Notes intimes masquées</span>
           </span>
-          <span className="cell-value" style={{ color: 'var(--sys-green)' }}>Protégé</span>
+          <span className="cell-value">Protégé</span>
         </div>
       </Section>
 
-      <div style={{ margin: '14px 0 24px' }}>
+      <div className="section">
         <button
           type="button"
           className="btn btn-primary btn-block"
@@ -112,7 +110,7 @@ export function ShareManagerSheet({ open, onClose }: Props) {
           </div>
         ) : (
           links.map((link) => (
-            <div key={link.id} className="cell" style={{ gap: 10 }}>
+            <div key={link.id} className="cell">
               <div className="cell-body">
                 <div className="cell-title">{link.label}</div>
                 <div className="cell-sub">
@@ -124,11 +122,10 @@ export function ShareManagerSheet({ open, onClose }: Props) {
                 type="button"
                 className="btn btn-sm btn-secondary"
                 onClick={() => copyLink(link.token, link.id)}
-                style={{ gap: 4 }}
               >
                 {copiedId === link.id ? (
                   <>
-                    <Check size={14} color="var(--sys-green)" /> Copié !
+                    <Check size={14} /> Copié
                   </>
                 ) : (
                   <>
@@ -139,8 +136,7 @@ export function ShareManagerSheet({ open, onClose }: Props) {
 
               <button
                 type="button"
-                className="icon-btn"
-                style={{ color: 'var(--sys-red)', width: 32, height: 32 }}
+                className="icon-btn is-sm is-danger"
                 onClick={() => handleDelete(link.id)}
                 aria-label="Supprimer le lien"
               >

@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties } from 'react'
+import { useEffect, useState } from 'react'
 import { Check } from 'lucide-react'
 import { Sheet } from '../../components/Sheet'
 import { DaysPicker, DurationPicker, Section, TaskIcon } from '../../components/ui'
@@ -89,7 +89,7 @@ export function AddSlotSheet({ open, onClose, date, taskId, initialStartMin, onN
       }
     >
       {noTasks ? (
-        <div className="stack" style={{ textAlign: 'center', padding: '12px 0 8px' }}>
+        <div className="stack gap-3 text-center">
           <p className="muted">Crée d’abord une tâche pour pouvoir lui allouer des créneaux.</p>
           <button
             className="btn btn-primary"
@@ -162,7 +162,7 @@ export function AddSlotSheet({ open, onClose, date, taskId, initialStartMin, onN
               />
             </label>
             {repeat && (
-              <div className="pad stack" style={{ '--gap': '12px' } as CSSProperties}>
+              <div className="pad">
                 <DaysPicker value={days} onChange={setDays} idPrefix="add-slot-repeat" />
               </div>
             )}

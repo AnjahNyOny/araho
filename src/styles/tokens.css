@@ -1,128 +1,111 @@
+/* ==========================================================================
+   Araho — tokens « carnet d'étude » (voir DESIGN.md)
+   Chaque couleur est définie une seule fois : light-dark(clair, sombre).
+   Le thème suit le système, ou data-theme="light|dark" sur <html>.
+   ========================================================================== */
+
 :root {
   color-scheme: light dark;
 
-  /* Couleurs système Apple (clair) */
-  --sys-blue: rgb(0, 122, 255);
-  --sys-green: rgb(52, 199, 89);
-  --sys-indigo: rgb(88, 86, 214);
-  --sys-orange: rgb(255, 149, 0);
-  --sys-pink: rgb(255, 45, 85);
-  --sys-purple: rgb(175, 82, 222);
-  --sys-red: rgb(255, 59, 48);
-  --sys-cyan: rgb(50, 173, 230);
-  --sys-yellow: rgb(255, 204, 0);
-  --sys-mint: rgb(0, 199, 190);
+  /* Papier & surfaces */
+  --bg: light-dark(#f5f0e6, #1b1814);
+  --bg-cell: light-dark(#fffcf5, #25211b);
+  --bg-cell-pressed: light-dark(#efe7d8, #2f2a22);
+  --bg-bar: light-dark(rgb(245 240 230 / 0.92), rgb(27 24 20 / 0.92));
+  --bg-sheet: light-dark(#f5f0e6, #1f1c17);
+  --bg-sunken: light-dark(#ede5d6, #15130f);
 
-  /* Surfaces */
-  --bg: #f2f2f7;
-  --bg-cell: #ffffff;
-  --bg-cell-pressed: #e5e5ea;
-  --bg-bar: rgba(249, 249, 249, 0.94);
-  --bg-sheet: #f2f2f7;
-
-  /* Texte */
-  --label: #000000;
-  --label-2: rgba(60, 60, 67, 0.6);
-  --label-3: rgba(60, 60, 67, 0.3);
+  /* Encre (3 tons seulement) */
+  --label: light-dark(#2b2620, #ede6da);
+  --label-2: light-dark(#6f6559, #b2a796);
+  --label-3: light-dark(#a69c8e, #7a7165);
 
   /* Traits & remplissages */
-  --separator: rgba(60, 60, 67, 0.29);
-  --fill: rgba(120, 120, 128, 0.12);
-  --fill-2: rgba(120, 120, 128, 0.2);
+  --separator: light-dark(#e4dccd, #3a342b);
+  --rule: light-dark(#d6ccb9, #4a4338);
+  --fill: light-dark(rgb(110 88 56 / 0.08), rgb(237 230 218 / 0.08));
+  --fill-2: light-dark(rgb(110 88 56 / 0.16), rgb(237 230 218 / 0.16));
 
-  /* Sémantique */
-  --accent: var(--sys-blue);
-  --success: var(--sys-green);
-  --warning: var(--sys-orange);
-  --danger: var(--sys-red);
+  /* Une seule couleur d'accent : terre cuite */
+  --accent: light-dark(#a9512b, #e3916a);
+  --on-accent: light-dark(#fffcf5, #1b1814);
+  /* Pictogramme sur une pastille de couleur (pastels en sombre → encre foncée) */
+  --on-color: light-dark(#fffcf5, #1b1814);
+  --knob: #fffcf5;
+  --scrim: rgb(30 20 10 / 0.42);
 
-  /* Rayons */
-  --r-cell: 12px;
-  --r-control: 10px;
-  --r-pill: 999px;
+  /* Sémantique (pigments sourds) */
+  --success: light-dark(#4f6c31, #9cbf74);
+  --warning: light-dark(#8f6418, #e0b25c);
+  --danger: light-dark(#b13b2f, #ef7d6f);
 
-  /* Typo */
-  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'SF Pro Display', system-ui, 'Helvetica Neue', Arial, sans-serif;
+  /* Couleurs de tâches (noms conservés : stockés en base sous forme var(--sys-*)) */
+  --sys-blue: light-dark(#3f6b98, #82a9d6);
+  --sys-green: light-dark(#5b8749, #95c27f);
+  --sys-indigo: light-dark(#53528f, #9a99d6);
+  --sys-orange: light-dark(#c4742c, #eba467);
+  --sys-pink: light-dark(#b5506c, #e590a8);
+  --sys-purple: light-dark(#7d5a9a, #bb98d8);
+  --sys-red: light-dark(#b4463b, #ec8a7e);
+  --sys-cyan: light-dark(#3d8aa1, #7fc3d8);
+  --sys-teal: light-dark(#3a8f86, #79c9bf);
+  --sys-yellow: light-dark(#a8851f, #e6c862);
+  --sys-mint: light-dark(#3f9488, #7dcdc1);
 
-  /* Échelle typographique (5 niveaux, voir DESIGN.md) */
-  --fs-large-title: 34px;
+  /* Typographie : titres serif (police système, rien à télécharger), texte sans */
+  --font: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+  --font-serif: ui-serif, 'New York', 'Iowan Old Style', 'Charter', 'Palatino Linotype', Palatino, Georgia, serif;
+
+  /* Échelle typographique : 6 niveaux + l'horloge de session */
+  --fs-display: 56px;
+  --fs-large-title: 32px;
   --fs-title: 22px;
   --fs-body: 17px;
   --fs-secondary: 15px;
   --fs-note: 13px;
+  --fs-micro: 11px;
 
-  /* Espacement (grille de 8) */
-  --s-1: 8px;
-  --s-2: 16px;
-  --s-3: 24px;
-  --s-4: 32px;
+  --fw-regular: 400;
+  --fw-medium: 500;
+  --fw-bold: 600;
+
+  /* Espacement (grille de 4) */
+  --sp-1: 4px;
+  --sp-2: 8px;
+  --sp-3: 12px;
+  --sp-4: 16px;
+  --sp-5: 24px;
+  --sp-6: 32px;
+  --sp-7: 48px;
+
+  /* Rayons : 3 tailles + pilule */
+  --r-sm: 6px;
+  --r-md: 10px;
+  --r-lg: 14px;
+  --r-pill: 999px;
+
+  /* Ombres : 2 niveaux seulement */
+  --shadow-1: 0 1px 0 light-dark(rgb(80 55 25 / 0.05), rgb(0 0 0 / 0.3)), 0 1px 3px light-dark(rgb(80 55 25 / 0.06), rgb(0 0 0 / 0.25));
+  --shadow-2: 0 10px 28px light-dark(rgb(60 40 15 / 0.16), rgb(0 0 0 / 0.5)), 0 2px 6px light-dark(rgb(60 40 15 / 0.08), rgb(0 0 0 / 0.3));
 
   /* Layout */
   --safe-top: env(safe-area-inset-top, 0px);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
   --safe-left: env(safe-area-inset-left, 0px);
   --safe-right: env(safe-area-inset-right, 0px);
-  --tabbar-h: 50px;
-  --sidebar-w: 260px;
+  --tabbar-h: 52px;
+  --sidebar-w: 248px;
   --content-max: 700px;
 
   /* Animation */
   --ease: cubic-bezier(0.25, 0.1, 0.25, 1);
-  --dur: 200ms;
+  --dur: 180ms;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) {
-    --sys-blue: rgb(10, 132, 255);
-    --sys-green: rgb(48, 209, 88);
-    --sys-indigo: rgb(94, 92, 230);
-    --sys-orange: rgb(255, 159, 10);
-    --sys-pink: rgb(255, 55, 95);
-    --sys-purple: rgb(191, 90, 242);
-    --sys-red: rgb(255, 69, 58);
-    --sys-cyan: rgb(100, 210, 255);
-    --sys-yellow: rgb(255, 214, 10);
-    --sys-mint: rgb(102, 212, 207);
-
-    --bg: #000000;
-    --bg-cell: #1c1c1e;
-    --bg-cell-pressed: #2c2c2e;
-    --bg-bar: rgba(28, 28, 30, 0.94);
-    --bg-sheet: #1c1c1e;
-
-    --label: #ffffff;
-    --label-2: rgba(235, 235, 245, 0.6);
-    --label-3: rgba(235, 235, 245, 0.3);
-
-    --separator: rgba(84, 84, 88, 0.65);
-    --fill: rgba(120, 120, 128, 0.24);
-    --fill-2: rgba(120, 120, 128, 0.36);
-  }
+:root[data-theme='light'] {
+  color-scheme: light;
 }
 
-:root[data-theme="dark"] {
-  --sys-blue: rgb(10, 132, 255);
-  --sys-green: rgb(48, 209, 88);
-  --sys-indigo: rgb(94, 92, 230);
-  --sys-orange: rgb(255, 159, 10);
-  --sys-pink: rgb(255, 55, 95);
-  --sys-purple: rgb(191, 90, 242);
-  --sys-red: rgb(255, 69, 58);
-  --sys-cyan: rgb(100, 210, 255);
-  --sys-yellow: rgb(255, 214, 10);
-  --sys-mint: rgb(102, 212, 207);
-
-  --bg: #000000;
-  --bg-cell: #1c1c1e;
-  --bg-cell-pressed: #2c2c2e;
-  --bg-bar: rgba(28, 28, 30, 0.94);
-  --bg-sheet: #1c1c1e;
-
-  --label: #ffffff;
-  --label-2: rgba(235, 235, 245, 0.6);
-  --label-3: rgba(235, 235, 245, 0.3);
-
-  --separator: rgba(84, 84, 88, 0.65);
-  --fill: rgba(120, 120, 128, 0.24);
-  --fill-2: rgba(120, 120, 128, 0.36);
+:root[data-theme='dark'] {
+  color-scheme: dark;
 }

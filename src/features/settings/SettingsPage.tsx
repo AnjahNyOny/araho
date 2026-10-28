@@ -172,7 +172,7 @@ export function SettingsPage() {
       <PageHeader title="Réglages" />
 
       {message && (
-        <div className="status-banner success animate-in" style={{ marginBottom: 20 }}>
+        <div className="status-banner success animate-in">
           <span>{message}</span>
         </div>
       )}
@@ -190,8 +190,8 @@ export function SettingsPage() {
       >
         {!isConfigured ? (
           <div className="cell">
-            <div className="settings-icon" style={{ background: 'var(--sys-orange)' }}>
-              <ShieldAlert size={16} strokeWidth={2.4} />
+            <div className="settings-icon">
+              <ShieldAlert size={16} strokeWidth={2.2} />
             </div>
             <div className="cell-body">
               <div className="cell-title">Supabase non connecté</div>
@@ -201,8 +201,8 @@ export function SettingsPage() {
         ) : user ? (
           <>
             <div className="cell">
-              <div className="settings-icon" style={{ background: 'var(--sys-blue)' }}>
-                <User size={16} strokeWidth={2.4} />
+              <div className="settings-icon">
+                <User size={16} strokeWidth={2.2} />
               </div>
               <div className="cell-body">
                 <div className="cell-title truncate">{user.user_metadata?.display_name || 'Utilisateur'}</div>
@@ -211,10 +211,10 @@ export function SettingsPage() {
             </div>
 
             <button className="cell" onClick={handleSync} disabled={sync.status === 'syncing'}>
-              <div className="settings-icon" style={{ background: 'var(--sys-green)' }}>
+              <div className="settings-icon">
                 <RefreshCw
                   size={16}
-                  strokeWidth={2.4}
+                  strokeWidth={2.2}
                   className={sync.status === 'syncing' ? 'spin' : ''}
                 />
               </div>
@@ -228,16 +228,16 @@ export function SettingsPage() {
             </button>
 
             <button className="cell" onClick={signOut}>
-              <div className="settings-icon" style={{ background: 'var(--label-3)' }}>
-                <LogOut size={16} strokeWidth={2.4} />
+              <div className="settings-icon is-danger">
+                <LogOut size={16} strokeWidth={2.2} />
               </div>
-              <span className="cell-body" style={{ color: 'var(--sys-red)' }}>Se déconnecter</span>
+              <span className="cell-body text-danger">Se déconnecter</span>
             </button>
           </>
         ) : (
           <button className="cell" onClick={() => setAuthOpen(true)}>
-            <div className="settings-icon" style={{ background: 'var(--sys-blue)' }}>
-              <User size={16} strokeWidth={2.4} />
+            <div className="settings-icon">
+              <User size={16} strokeWidth={2.2} />
             </div>
             <span className="cell-body">Se connecter ou créer un compte</span>
             <ChevronRight size={18} className="cell-chevron" />
@@ -260,8 +260,8 @@ export function SettingsPage() {
             }
           }}
         >
-          <div className="settings-icon" style={{ background: 'var(--sys-pink, #FF2D55)' }}>
-            <Share2 size={16} strokeWidth={2.4} />
+          <div className="settings-icon">
+            <Share2 size={16} strokeWidth={2.2} />
           </div>
           <div className="cell-body">
             <div className="cell-title">Partager mon planning</div>
@@ -278,46 +278,27 @@ export function SettingsPage() {
         title="Apparence"
         footer="En mode automatique, Araho synchronise son affichage sur le réglage système de ton Mac ou iPhone."
       >
-        <div className="cell" style={{ justifyContent: 'space-between' }}>
-          <div className="row" style={{ gap: 12 }}>
-            <div
-              className="settings-icon"
-              style={{
-                background:
-                  themeMode === 'dark'
-                    ? 'var(--sys-indigo)'
-                    : themeMode === 'light'
-                    ? 'var(--sys-orange)'
-                    : 'var(--sys-blue)',
-              }}
-            >
+        <div className="cell">
+          <div className="row grow">
+            <div className="settings-icon">
               {themeMode === 'dark' ? (
-                <Moon size={16} strokeWidth={2.4} />
+                <Moon size={16} strokeWidth={2.2} />
               ) : themeMode === 'light' ? (
-                <Sun size={16} strokeWidth={2.4} />
+                <Sun size={16} strokeWidth={2.2} />
               ) : (
-                <Laptop size={16} strokeWidth={2.4} />
+                <Laptop size={16} strokeWidth={2.2} />
               )}
             </div>
-            <span className="cell-body">Thème d'affichage</span>
+            <span className="cell-body">Thème</span>
           </div>
-          <div className="chips" style={{ margin: 0 }}>
-            <button
-              className={`chip chip-sm ${themeMode === 'auto' ? 'is-active' : ''}`}
-              onClick={() => handleThemeChange('auto')}
-            >
+          <div className="segmented is-sm" role="group" aria-label="Thème">
+            <button aria-pressed={themeMode === 'auto'} onClick={() => handleThemeChange('auto')}>
               Auto
             </button>
-            <button
-              className={`chip chip-sm ${themeMode === 'light' ? 'is-active' : ''}`}
-              onClick={() => handleThemeChange('light')}
-            >
+            <button aria-pressed={themeMode === 'light'} onClick={() => handleThemeChange('light')}>
               Clair
             </button>
-            <button
-              className={`chip chip-sm ${themeMode === 'dark' ? 'is-active' : ''}`}
-              onClick={() => handleThemeChange('dark')}
-            >
+            <button aria-pressed={themeMode === 'dark'} onClick={() => handleThemeChange('dark')}>
               Sombre
             </button>
           </div>
@@ -330,8 +311,8 @@ export function SettingsPage() {
         footer="Reçois un doux carillon et une notification système 5 minutes avant le début de tes sessions planifiées pour te préparer."
       >
         <div className="cell">
-          <div className="settings-icon" style={{ background: 'var(--sys-blue)' }}>
-            <Bell size={16} strokeWidth={2.4} />
+          <div className="settings-icon">
+            <Bell size={16} strokeWidth={2.2} />
           </div>
           <span className="cell-body">Rappels 5 min avant créneau</span>
           <input
@@ -352,8 +333,8 @@ export function SettingsPage() {
         </div>
 
         <div className="cell">
-          <div className="settings-icon" style={{ background: 'var(--sys-purple)' }}>
-            <Volume2 size={16} strokeWidth={2.4} />
+          <div className="settings-icon">
+            <Volume2 size={16} strokeWidth={2.2} />
           </div>
           <span className="cell-body">Alerte sonore (carillon zen)</span>
           <input
@@ -386,8 +367,8 @@ export function SettingsPage() {
             showMsg('Carillon joué et notification de test envoyée !')
           }}
         >
-          <div className="settings-icon" style={{ background: 'var(--sys-teal, #30B0C7)' }}>
-            <CheckCircle2 size={16} strokeWidth={2.4} />
+          <div className="settings-icon">
+            <CheckCircle2 size={16} strokeWidth={2.2} />
           </div>
           <span className="cell-body">Tester l’alerte sonore et la notification</span>
           <ChevronRight size={18} className="cell-chevron" />
@@ -409,35 +390,35 @@ export function SettingsPage() {
         footer="Tes données restent toujours disponibles sur cet appareil via IndexedDB, même hors connexion."
       >
         <button className="cell" onClick={handleExport} id="settings-export">
-          <div className="settings-icon" style={{ background: 'var(--sys-blue)' }}>
-            <Download size={16} strokeWidth={2.4} />
+          <div className="settings-icon">
+            <Download size={16} strokeWidth={2.2} />
           </div>
           <span className="cell-body">Exporter une sauvegarde JSON</span>
           <ChevronRight size={18} className="cell-chevron" />
         </button>
-        <label className="cell" id="settings-import-label" style={{ cursor: 'pointer' }}>
-          <div className="settings-icon" style={{ background: 'var(--sys-indigo)' }}>
-            <Upload size={16} strokeWidth={2.4} />
+        <label className="cell" id="settings-import-label">
+          <div className="settings-icon">
+            <Upload size={16} strokeWidth={2.2} />
           </div>
           <span className="cell-body">Importer une sauvegarde JSON</span>
           <ChevronRight size={18} className="cell-chevron" />
-          <input type="file" accept=".json" onChange={handleImport} style={{ display: 'none' }} id="settings-import" />
+          <input type="file" accept=".json" onChange={handleImport} className="hidden" id="settings-import" />
         </label>
       </Section>
 
       <Section title="Outils">
         <button className="cell" onClick={handleLoadDemo} disabled={loading} id="settings-load-demo">
-          <div className="settings-icon" style={{ background: 'var(--sys-purple)' }}>
-            <Sparkles size={16} strokeWidth={2.4} />
+          <div className="settings-icon">
+            <Sparkles size={16} strokeWidth={2.2} />
           </div>
           <span className="cell-body">Charger des données d’exemple</span>
           <ChevronRight size={18} className="cell-chevron" />
         </button>
         <button className="cell" onClick={handleWipe} disabled={loading} id="settings-wipe">
-          <div className="settings-icon" style={{ background: 'var(--sys-red)' }}>
-            <Trash2 size={16} strokeWidth={2.4} />
+          <div className="settings-icon is-danger">
+            <Trash2 size={16} strokeWidth={2.2} />
           </div>
-          <span className="cell-body" style={{ color: 'var(--sys-red)' }}>Effacer toutes les données locales</span>
+          <span className="cell-body text-danger">Effacer toutes les données locales</span>
         </button>
       </Section>
 

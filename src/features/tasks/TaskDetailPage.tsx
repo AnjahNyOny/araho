@@ -1,9 +1,9 @@
 import { useMemo, useState, type CSSProperties } from 'react'
 import { Link, useNavigate, useParams } from 'react-router-dom'
-import { ChevronLeft, Play, Pencil, Archive, ArchiveRestore, Trash2, Repeat, Plus, BookOpen, FileDown } from 'lucide-react'
+import { ChevronLeft, Play, Pencil, Archive, ArchiveRestore, Trash2, Repeat, Plus, BookOpen, FileDown, Check } from 'lucide-react'
 import { NoteCard } from '../journal/NoteCard'
 import { TaskIcon, EmptyState, Section } from '../../components/ui'
-import { useActiveSession, useNotes, useRecurrences, useSessions, useTask } from '../../db/hooks'
+import { useActiveSession, useChecklistGroups, useNotes, useRecurrences, useSessions, useTask } from '../../db/hooks'
 import { exportNotesToMarkdown } from '../../lib/exportMarkdown'
 import * as repo from '../../db/repo'
 import { computeTaskStats } from '../../db/stats'
@@ -18,6 +18,7 @@ export function TaskDetailPage() {
   const sessions = useSessions({ taskId })
   const notes = useNotes(taskId)
   const recurrences = useRecurrences(taskId)
+  const checklists = useChecklistGroups(taskId)
   const active = useActiveSession()
   const [editing, setEditing] = useState(false)
   const [planning, setPlanning] = useState(false)
@@ -45,9 +46,9 @@ export function TaskDetailPage() {
 
   return (
     <div style={{ '--c': task.color } as CSSProperties}>
-      <header className="row spread" style={{ marginBottom: 12 }}>
-        <button className="btn btn-ghost" onClick={() => navigate('/tasks')} id="task-back" style={{ paddingLeft: 0 }}>
-          <ChevronLeft size={24} style={{ marginRight: -4 }} /> Tâches
+      <header className="nav-bar">
+        <button className="btn btn-ghost btn-back" onClick={() => navigate('/tasks')} id="task-back">
+          <ChevronLeft size={24} /> Tâches
         </button>
         <button className="btn btn-ghost" onClick={() => setEditing(true)} id="task-edit">
           <Pencil size={16} /> Modifier
@@ -60,17 +61,47 @@ export function TaskDetailPage() {
         </div>
         <div className="caption">
           {task.dailyGoalMin ? `${formatDuration(task.dailyGoalMin)} / jour · ` : ''}
-          {since === 0 ? 'depuis aujourd’hui' : `depuis ${since} jour${since > 1 ? 's' : ''}`}
+          {since < 0
+            ? `à partir du ${formatDayMonth(task.startDate)}`
+            : since === 0
+              ? 'depuis aujourd’hui'
+              : `depuis ${since} jour${since > 1 ? 's' : ''}`}
         </div>
         <h1 className="task-hero-title">{task.name}</h1>
         {task.description && <p className="task-hero-desc">{task.description}</p>}
       </div>
 
-      <div className="section" style={{ marginBottom: 28 }}>
+      <div className="section">
         <button className="btn btn-primary btn-lg btn-block" onClick={start} id="task-start">
           <Play size={17} fill="currentColor" /> {active?.taskId === task.id ? 'Reprendre la session' : 'Démarrer une session'}
         </button>
       </div>
+
+      {checklists?.map((g) => {
+        const done = g.items.filter((it) => it.checked).length
+        return (
+          <Section
+            key={g.groupId}
+            title={`${g.groupTitle} · ${done}/${g.items.length}`}
+            footer={g.dueDate ? `Échéance : ${formatDayMonth(g.dueDate)}` : undefined}
+          >
+            {g.items.map((it) => (
+              <button
+                key={it.id}
+                className="cell"
+                id={`check-${it.id}`}
+                aria-pressed={!!it.checked}
+                onClick={() => repo.setChecklistItemChecked(it.id, !it.checked)}
+              >
+                <span className={`check is-box ${it.checked ? 'is-done' : ''}`}>
+                  <Check size={16} strokeWidth={3} />
+                </span>
+                <span className={`cell-body ${it.checked ? 'muted' : ''}`}>{it.label}</span>
+              </button>
+            ))}
+          </Section>
+        )
+      })}
 
       {stats && (
         <Section title="Progression">
@@ -135,8 +166,7 @@ export function TaskDetailPage() {
               </div>
             </div>
             <button
-              className="icon-btn"
-              style={{ color: 'var(--danger)' }}
+              className="icon-btn is-danger"
               aria-label="Supprimer la série"
               id={`rec-delete-${r.id}`}
               onClick={async () => {
@@ -152,14 +182,13 @@ export function TaskDetailPage() {
         )}
       </Section>
 
-      <section style={{ marginTop: 8 }} aria-label="Ce que j'ai appris">
-        <div className="row spread" style={{ alignItems: 'baseline', marginBottom: 6 }}>
-          <div className="group-title" style={{ margin: 0 }}>Ce que j’ai appris · {notes?.length ?? 0}</div>
+      <section className="section" aria-label="Ce que j'ai appris">
+        <div className="section-head">
+          <div className="group-title">Ce que j’ai appris · {notes?.length ?? 0}</div>
           {notes && notes.length > 0 && (
             <button
               className="btn btn-ghost btn-sm"
               onClick={() => exportNotesToMarkdown(notes, new Map([[task.id, task]]), `Journal — ${task.name}`)}
-              style={{ fontSize: 13 }}
               id="task-export-md"
             >
               <FileDown size={14} /> Exporter .md
@@ -177,7 +206,7 @@ export function TaskDetailPage() {
         )}
       </section>
 
-      <div className="section" style={{ marginTop: 28 }}>
+      <div className="section mt-5">
         <div className="group">
           <button
             className="cell is-accent"

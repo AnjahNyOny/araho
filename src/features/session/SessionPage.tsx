@@ -82,27 +82,27 @@ export function SessionPage() {
         >
           <ChevronDown size={24} />
         </button>
-        <div className="row" style={{ '--gap': '8px' } as CSSProperties}>
+        <div className="row gap-2">
           {paused ? <span className="tag">En pause</span> : <span className="live-dot" />}
           <span className="small muted">Session en cours</span>
         </div>
-        <button className="icon-btn" onClick={cancel} aria-label="Abandonner" id="session-cancel">
+        <button className="icon-btn is-muted" onClick={cancel} aria-label="Abandonner" id="session-cancel">
           <X size={22} />
         </button>
       </header>
 
       <div className="session-center">
-        <div className="row session-task" style={{ '--gap': '12px' } as CSSProperties}>
+        <div className="row session-task">
           <TaskIcon task={task} size={36} />
-          <h1 className="display">{task.name}</h1>
+          <h1>{task.name}</h1>
         </div>
 
         <ProgressRing value={progress} size={270} stroke={10} color={task.color} className={`session-ring ${paused ? 'is-paused' : ''}`}>
           <div>
-            <div className="display tabular session-clock">{clock}</div>
+            <div className="session-clock">{clock}</div>
             <div className="small muted">
               {reached ? (
-                <span className="row" style={{ '--gap': '6px', justifyContent: 'center', color: 'var(--success)' } as CSSProperties}>
+                <span className="row gap-2 center text-success">
                   <Trophy size={14} /> Objectif atteint
                 </span>
               ) : (
@@ -113,7 +113,7 @@ export function SessionPage() {
         </ProgressRing>
 
         {reached && (
-          <div className="status-banner success animate-in" style={{ marginTop: 4, maxWidth: 360, textAlign: 'center' }}>
+          <div className="status-banner success session-reached animate-in">
             <span>Objectif atteint ! Prends un instant pour documenter ce que tu as appris.</span>
           </div>
         )}

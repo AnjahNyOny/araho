@@ -49,9 +49,9 @@ export function TasksPage() {
         </div>
       )}
 
-      <div className="section" style={{ marginTop: 24 }}>
+      <div className="section mt-5">
         <div className="group">
-          <label className="cell" htmlFor="tasks-toggle-archived" style={{ cursor: 'pointer' }}>
+          <label className="cell" htmlFor="tasks-toggle-archived">
             <span className="cell-body">Afficher les tâches archivées</span>
             <input
               id="tasks-toggle-archived"

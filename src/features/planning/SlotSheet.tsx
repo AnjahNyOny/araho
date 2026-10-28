@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type CSSProperties } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { Play, Check, SkipForward, Trash2, Repeat, NotebookPen, Undo2, Clock, Sparkles } from 'lucide-react'
@@ -92,15 +92,15 @@ export function SlotSheet({ item, onClose }: Props) {
 
   return (
     <Sheet open onClose={onClose} id="slot-sheet" title="Créneau">
-      <div className="section row" style={{ '--gap': '14px', padding: '4px 4px 0' } as CSSProperties}>
+      <div className="section row gap-4">
         <TaskIcon task={task} size={56} />
         <div className="grow">
-          <h3 style={{ fontSize: 22, fontWeight: 700 }}>{task.name}</h3>
+          <h3 className="title">{task.name}</h3>
           <div className="small muted tabular">
             {relativeDayLabel(item.date)} · {minutesToTime(item.startMin)} – {minutesToTime(end)} · {formatDuration(item.durationMin)}
           </div>
           {item.recurrence && (
-            <div className="tiny muted row" style={{ '--gap': '5px', marginTop: 2 } as CSSProperties}>
+            <div className="tiny muted row gap-1 mt-1">
               <Repeat size={12} /> {describeDays(item.recurrence.daysOfWeek)}
             </div>
           )}
@@ -196,19 +196,19 @@ export function SlotSheet({ item, onClose }: Props) {
                     onClose()
                   }}
                 >
-                  <Sparkles size={20} style={{ color: 'var(--sys-green)' }} />
+                  <Sparkles size={20} />
                   <div className="cell-body">
                     <div className="cell-title">Prochain créneau libre</div>
                     <div className="cell-sub tabular">
                       {minutesToTime(nextFree.startMin)} – {minutesToTime(nextFree.startMin + item.durationMin)}
                     </div>
                   </div>
-                  <span className="chip chip-sm is-active" style={{ fontSize: 12 }}>
+                  <span className="chip chip-sm is-active">
                     Décaler
                   </span>
                 </button>
               )}
-              <div className="pad row" style={{ gap: 8, paddingTop: 6, paddingBottom: 10 }}>
+              <div className="pad row gap-2">
                 <button
                   type="button"
                   className="btn btn-sm btn-secondary grow"

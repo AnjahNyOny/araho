@@ -24,7 +24,7 @@ export function NoteCard({ note, session, showTask = false }: NoteCardProps) {
               {task.name}
             </Link>
           )}
-          <div className="tiny muted row" style={{ gap: 6 }}>
+          <div className="tiny muted row gap-2">
             <span>
               {relativeDayLabel(note.date)}
               {session && <span className="tabular"> · {formatDuration(session.durationMin)}</span>}
@@ -34,8 +34,7 @@ export function NoteCard({ note, session, showTask = false }: NoteCardProps) {
         </div>
         <Link
           to={`/note/${note.sessionId}`}
-          className="icon-btn"
-          style={{ width: 30, height: 30 }}
+          className="icon-btn is-sm is-muted"
           title="Modifier la note"
           aria-label="Modifier la note"
           id={`note-edit-${note.id}`}

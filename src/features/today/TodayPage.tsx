@@ -9,7 +9,6 @@ import {
   Check,
   ListChecks,
   Brain,
-  Sparkles,
   FastForward,
 } from 'lucide-react'
 import { PageHeader, EmptyState, TaskIcon } from '../../components/ui'
@@ -163,33 +162,19 @@ export function TodayPage() {
           )}
 
           {isToday && dueNotes.length > 0 && (
-            <div
-              className="cell animate-in"
-              style={{
-                background: 'var(--bg-cell)',
-                borderRadius: 'var(--r-cell)',
-                padding: '12px 16px',
-                marginBottom: 16,
-                boxShadow: '0 2px 8px rgba(0,0,0,0.04)',
-                cursor: 'pointer',
-              }}
-              onClick={() => setReviewOpen(true)}
-              id="today-spaced-card"
-            >
-              <div className="settings-icon" style={{ background: 'var(--sys-purple)' }}>
-                <Brain size={16} strokeWidth={2.4} />
-              </div>
-              <div className="cell-body">
-                <div className="cell-title">
-                  {dueNotes.length} apprentissage{dueNotes.length > 1 ? 's' : ''} à réviser
+            <div className="group callout animate-in">
+              <button className="cell" onClick={() => setReviewOpen(true)} id="today-spaced-card">
+                <div className="settings-icon">
+                  <Brain size={16} strokeWidth={2.2} />
                 </div>
-                <div className="cell-sub">
-                  Ancrage mémoriel · ~2 min
+                <div className="cell-body">
+                  <div className="cell-title">
+                    {dueNotes.length} apprentissage{dueNotes.length > 1 ? 's' : ''} à réviser
+                  </div>
+                  <div className="cell-sub">Ancrage mémoriel · ~2 min</div>
                 </div>
-              </div>
-              <span className="chip chip-sm is-active" style={{ fontSize: 13 }}>
-                Réviser
-              </span>
+                <span className="chip chip-sm is-active">Réviser</span>
+              </button>
             </div>
           )}
 
@@ -284,20 +269,8 @@ export function TodayPage() {
       )}
 
       {toastMessage && (
-        <div
-          className="cal-drag-badge is-free animate-in"
-          style={{
-            position: 'fixed',
-            bottom: 'calc(var(--tabbar-h) + var(--safe-bottom) + 16px)',
-            left: '50%',
-            transform: 'translateX(-50%)',
-            padding: '8px 16px',
-            fontSize: 13,
-            zIndex: 120,
-            boxShadow: '0 8px 24px rgba(0,0,0,0.22)',
-          }}
-        >
-          <Sparkles size={14} strokeWidth={2.5} />
+        <div className="toast" role="status">
+          <Check size={14} strokeWidth={2.6} />
           <span>{toastMessage}</span>
         </div>
       )}
@@ -359,10 +332,9 @@ function TodayFreeSlot({
       title="Cliquer pour ajouter un créneau ou glisser une tâche ici pour la reporter"
     >
       <div className="today-free-slot-info">
-        <Sparkles size={14} style={{ color: 'var(--sys-green)' }} />
-        <span>{isDragOver ? '🎯 Déposer ici pour reporter à' : 'Créneau libre'}</span>
+        <span>{isDragOver ? 'Déposer ici' : 'Libre'}</span>
         <span className="today-free-slot-badge">
-          {minutesToTime(slot.startMin)} – {minutesToTime(slot.endMin)} ({formatDuration(slot.durationMin)})
+          {minutesToTime(slot.startMin)} – {minutesToTime(slot.endMin)} · {formatDuration(slot.durationMin)}
         </span>
       </div>
       <button
@@ -415,7 +387,7 @@ function SlotRow({
 
   return (
     <div
-      className={`cell has-icon is-tappable ${skipped ? 'is-skipped' : ''} ${isDragging ? 'is-placeholder' : ''}`}
+      className={`cell has-icon is-tappable ${done ? 'is-done' : ''} ${skipped ? 'is-skipped' : ''} ${isDragging ? 'is-placeholder' : ''}`}
       onClick={onOpen}
       role="button"
       tabIndex={0}
@@ -427,12 +399,12 @@ function SlotRow({
     >
       <TaskIcon task={task} size={34} />
       <div className="cell-body">
-        <div className="cell-title truncate" style={skipped || done ? { color: 'var(--label-2)' } : undefined}>
+        <div className="cell-title truncate">
           {task.name}
         </div>
         <div className="cell-sub tabular">{sub}</div>
       </div>
-      <div className="row" style={{ gap: 6, alignItems: 'center' }}>
+      <div className="slot-actions">
         {!done && !skipped && !running && onPostpone && (
           <button
             type="button"
@@ -462,7 +434,7 @@ function SlotRow({
               onStart()
             }}
           >
-            <Play size={12} fill="currentColor" style={{ marginLeft: 1 }} />
+            <Play size={12} fill="currentColor" />
           </button>
         )}
       </div>
@@ -472,11 +444,11 @@ function SlotRow({
 
 function Onboarding({ onCreate }: { onCreate: () => void }) {
   return (
-    <div className="empty animate-in" style={{ paddingTop: 72 }}>
-      <div className="empty-icon" style={{ color: 'var(--accent)' }}>
+    <div className="empty is-tall animate-in">
+      <div className="empty-icon is-accent">
         <ListChecks size={60} strokeWidth={1.4} />
       </div>
-      <h2 style={{ fontSize: 26, fontWeight: 700 }}>Bienvenue sur Araho</h2>
+      <h2>Bienvenue sur Araho</h2>
       <p className="muted">
         Crée une tâche (ex. <strong>Apprendre le JavaScript</strong>), alloue-lui des créneaux, puis note ce que tu
         as appris à la fin de chaque session.

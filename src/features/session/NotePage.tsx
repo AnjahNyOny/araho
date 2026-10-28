@@ -1,4 +1,4 @@
-import { useEffect, useState, type CSSProperties, type KeyboardEvent } from 'react'
+import { useEffect, useState, type KeyboardEvent } from 'react'
 import { useNavigate, useParams } from 'react-router-dom'
 import { useLiveQuery } from 'dexie-react-hooks'
 import { ChevronLeft, Target, X } from 'lucide-react'
@@ -91,11 +91,11 @@ export function NotePage() {
 
   return (
     <div className="note-page animate-in">
-      <header className="row spread" style={{ marginBottom: 8 }}>
-        <button className="btn btn-ghost" onClick={goBack} id="note-back" style={{ paddingLeft: 0 }}>
-          <ChevronLeft size={24} style={{ marginRight: -4 }} /> Retour
+      <header className="nav-bar">
+        <button className="btn btn-ghost btn-back" onClick={goBack} id="note-back">
+          <ChevronLeft size={24} /> Retour
         </button>
-        <button type="button" className="btn btn-ghost" style={{ fontWeight: 600 }} onClick={save} disabled={saving} id="note-save-top">
+        <button type="button" className="btn btn-ghost strong" onClick={save} disabled={saving} id="note-save-top">
           OK
         </button>
       </header>
@@ -181,9 +181,8 @@ export function NotePage() {
           <label className="group-title" htmlFor="note-difficulties">Difficultés / questions</label>
           <textarea
             id="note-difficulties"
-            className="textarea"
+            className="textarea is-short"
             rows={3}
-            style={{ minHeight: 80 }}
             placeholder="Ce qui bloque, ce qui reste flou…"
             value={difficulties}
             onChange={(e) => setDifficulties(e.target.value)}
@@ -231,7 +230,7 @@ export function NotePage() {
           </div>
         </section>
 
-        <div className="stack" style={{ '--gap': '8px' } as CSSProperties}>
+        <div className="stack gap-2">
           <button type="submit" className="btn btn-primary btn-lg btn-block" disabled={saving} id="note-save">
             Enregistrer la note
           </button>

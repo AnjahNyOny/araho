@@ -48,14 +48,13 @@ export function JournalPage() {
         eyebrow={`${filteredNotes.length} note${filteredNotes.length > 1 ? 's' : ''}`}
         title="Journal"
         actions={
-          <div className="row" style={{ gap: 6 }}>
+          <div className="row gap-1">
             {dueNotes.length > 0 && (
               <button
                 className="btn btn-ghost btn-sm"
                 onClick={() => setReviewOpen(true)}
                 title="Lancer une révision espacée"
                 id="journal-spaced-btn"
-                style={{ color: 'var(--sys-purple)' }}
               >
                 <Brain size={15} /> Réviser ({dueNotes.length})
               </button>
@@ -135,7 +134,7 @@ export function JournalPage() {
           text="À la fin de chaque session, note ce que tu as appris. Elles apparaîtront ici."
         />
       ) : filteredNotes.length === 0 ? (
-        <p className="muted" style={{ textAlign: 'center', padding: '40px 16px' }}>
+        <p className="empty-plain">
           Aucun résultat
         </p>
       ) : (

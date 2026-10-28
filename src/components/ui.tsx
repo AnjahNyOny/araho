@@ -1,4 +1,4 @@
-import type { CSSProperties, ReactNode } from 'react'
+import type { ReactNode } from 'react'
 import type { Task } from '../db/types'
 import { WEEK_ORDER, WEEKDAY_LETTERS, WEEKDAY_NAMES } from '../lib/date'
 import { TaskGlyph } from './TaskGlyph'
@@ -8,7 +8,7 @@ export function TaskIcon({ task, size = 30 }: { task: Pick<Task, 'icon' | 'color
   return <TaskGlyph icon={task.icon} color={task.color} size={size} />
 }
 
-/* ---------- En-tête de page (grand titre iOS) ---------- */
+/* ---------- En-tête de page (grand titre) ---------- */
 export function PageHeader({
   eyebrow,
   title,
@@ -44,7 +44,7 @@ export function Section({
   return (
     <section className="section">
       {(title || action) && (
-        <div className="row spread" style={{ paddingRight: 16 }}>
+        <div className="section-head">
           <div className="group-title">{title}</div>
           {action}
         </div>
@@ -95,7 +95,7 @@ export function DurationPicker({
   const isCustom = !options.includes(value)
   const label = (d: number) => (d === 0 ? 'Aucun' : d < 60 ? `${d} min` : d % 60 ? `${Math.floor(d / 60)}h30` : `${d / 60} h`)
   return (
-    <div className="stack" style={{ '--gap': '10px' } as CSSProperties}>
+    <div className="stack gap-3">
       <div className="chips">
         {options.map((d) => (
           <button
@@ -110,12 +110,11 @@ export function DurationPicker({
           </button>
         ))}
       </div>
-      <label className="row small muted" style={{ '--gap': '8px' } as CSSProperties}>
+      <label className="custom-duration">
         <span>Personnalisé</span>
         <input
           id={`${idPrefix}-custom`}
-          className="input"
-          style={{ width: 84, padding: '7px 10px', fontSize: 15 }}
+          className="input is-compact"
           type="number"
           inputMode="numeric"
           min={allowNone ? 0 : 5}
@@ -157,7 +156,7 @@ export function DaysPicker({
     { label: 'Aucun', days: [] },
   ]
   return (
-    <div className="stack" style={{ '--gap': '10px' } as CSSProperties}>
+    <div className="stack gap-3">
       <div className="days-picker">
         {WEEK_ORDER.map((d) => (
           <button

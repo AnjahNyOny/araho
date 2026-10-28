@@ -162,7 +162,7 @@ export function TaskFormSheet({ open, onClose, task, onCreated }: Props) {
             title="Planification automatique"
             footer="Crée un créneau récurrent de la durée de l’objectif. Choisis « Aucun » pour planifier toi-même."
           >
-            <div className="pad stack" style={{ '--gap': '14px' } as CSSProperties}>
+            <div className="pad">
               <DaysPicker value={days} onChange={setDays} idPrefix="task-schedule" />
             </div>
             {days.length > 0 && (

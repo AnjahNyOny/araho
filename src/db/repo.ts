@@ -23,7 +23,7 @@ import type {
 import { dayOfWeek, today, type ISODate } from '../lib/date'
 import { uuid } from '../lib/id'
 import { supabase } from '../lib/supabase'
-import { pushToSupabase } from './sync'
+import { pushToSupabase, withSyncPaused } from './sync'
 
 /* ------------------------------------------------------------------ */
 /* Helpers                                                             */
@@ -566,7 +566,13 @@ export async function exportAll(): Promise<BackupFile> {
  *   (élément retiré du plan).
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export async function importAll(file: any): Promise<number> {
+export function importAll(file: any): Promise<number> {
+  // Pas de synchro pendant l'écriture : elle supprimerait ce qui n'est pas encore sur Supabase
+  return withSyncPaused(() => importRecords(file))
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+async function importRecords(file: any): Promise<number> {
   const data = file?.data ?? file
   if (
     !data ||

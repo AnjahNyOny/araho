@@ -258,9 +258,17 @@ export async function pushToSupabase(userId: string): Promise<void> {
   }
 }
 
-/** Récupère les données distantes de Supabase et met à jour Dexie sans réanimer les éléments supprimés */
-export async function pullFromSupabase(userId: string): Promise<void> {
+/**
+ * Récupère les données distantes de Supabase et met à jour Dexie sans réanimer les éléments supprimés.
+ * Tout ce qui a été modifié localement après `since` (début de la synchro) est laissé intact :
+ * ni écrasé par une version distante plus ancienne, ni supprimé parce qu'il n'est pas encore
+ * sur Supabase (ex. import en cours pendant la synchro). Il sera poussé à la synchro suivante.
+ */
+export async function pullFromSupabase(userId: string, since: number = Date.now()): Promise<void> {
   if (!supabase) return
+  const keepLocal = (r: { deleted: 0 | 1; updatedAt: number } | undefined) =>
+    !!r && (r.deleted === 1 || r.updatedAt > since)
+  const untouched = (r: { updatedAt: number }) => r.updatedAt <= since
 
   // 1. Tasks
   const { data: remoteTasks } = await supabase.from('tasks').select('*').eq('user_id', userId)
@@ -268,7 +276,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
   if (remoteTasks) {
     for (const r of remoteTasks) {
       const existing = await db.tasks.get(r.id)
-      if (existing && existing.deleted === 1) continue // Était supprimé localement
+      if (keepLocal(existing)) continue // Supprimé ou modifié localement
 
       const local: Task = {
         id: r.id,
@@ -290,7 +298,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     // Supprimer localement les tâches qui ont été supprimées sur Supabase
     const allLocal = await db.tasks.toArray()
     for (const lt of allLocal) {
-      if (lt.userId === userId && !remoteTaskIds.has(lt.id)) {
+      if (lt.userId === userId && !remoteTaskIds.has(lt.id) && untouched(lt)) {
         await db.tasks.delete(lt.id)
       }
     }
@@ -302,7 +310,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     const remoteIds = new Set(remoteRecs.map((r) => r.id))
     for (const r of remoteRecs) {
       const existing = await db.recurrences.get(r.id)
-      if (existing && existing.deleted === 1) continue
+      if (keepLocal(existing)) continue
 
       const local: Recurrence = {
         id: r.id,
@@ -322,7 +330,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
 
     const allLocal = await db.recurrences.toArray()
     for (const lr of allLocal) {
-      if ((lr.userId === userId || !remoteTaskIds.has(lr.taskId)) && !remoteIds.has(lr.id)) {
+      if ((lr.userId === userId || !remoteTaskIds.has(lr.taskId)) && !remoteIds.has(lr.id) && untouched(lr)) {
         await db.recurrences.delete(lr.id)
       }
     }
@@ -334,7 +342,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     const remoteIds = new Set(remoteSlots.map((r) => r.id))
     for (const r of remoteSlots) {
       const existing = await db.slots.get(r.id)
-      if (existing && existing.deleted === 1) continue
+      if (keepLocal(existing)) continue
 
       const isSkippedOrDeleted = r.status === 'skipped' || r.status === 'deleted'
       const local: Slot = {
@@ -355,7 +363,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
 
     const allLocal = await db.slots.toArray()
     for (const ls of allLocal) {
-      if ((ls.userId === userId || !remoteTaskIds.has(ls.taskId)) && !remoteIds.has(ls.id)) {
+      if ((ls.userId === userId || !remoteTaskIds.has(ls.taskId)) && !remoteIds.has(ls.id) && untouched(ls)) {
         await db.slots.delete(ls.id)
       }
     }
@@ -367,7 +375,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     const remoteIds = new Set(remoteSessions.map((r) => r.id))
     for (const r of remoteSessions) {
       const existing = await db.sessions.get(r.id)
-      if (existing && existing.deleted === 1) continue
+      if (keepLocal(existing)) continue
 
       const local: Session = {
         id: r.id,
@@ -391,7 +399,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
 
     const allLocal = await db.sessions.toArray()
     for (const ls of allLocal) {
-      if ((ls.userId === userId || !remoteTaskIds.has(ls.taskId)) && !remoteIds.has(ls.id)) {
+      if ((ls.userId === userId || !remoteTaskIds.has(ls.taskId)) && !remoteIds.has(ls.id) && untouched(ls)) {
         await db.sessions.delete(ls.id)
       }
     }
@@ -403,7 +411,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     const remoteIds = new Set(remoteNotes.map((r) => r.id))
     for (const r of remoteNotes) {
       const existing = await db.notes.get(r.id)
-      if (existing && existing.deleted === 1) continue
+      if (keepLocal(existing)) continue
 
       const local: Note = {
         id: r.id,
@@ -425,7 +433,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
 
     const allLocal = await db.notes.toArray()
     for (const ln of allLocal) {
-      if ((ln.userId === userId || !remoteTaskIds.has(ln.taskId)) && !remoteIds.has(ln.id)) {
+      if ((ln.userId === userId || !remoteTaskIds.has(ln.taskId)) && !remoteIds.has(ln.id) && untouched(ln)) {
         await db.notes.delete(ln.id)
       }
     }
@@ -437,7 +445,7 @@ export async function pullFromSupabase(userId: string): Promise<void> {
     const remoteIds = new Set(remoteItems.map((r) => r.id))
     for (const r of remoteItems) {
       const existing = await db.checklistItems.get(r.id)
-      if (existing && existing.deleted === 1) continue
+      if (keepLocal(existing)) continue
 
       const local: ChecklistItem = {
         id: r.id,
@@ -460,24 +468,48 @@ export async function pullFromSupabase(userId: string): Promise<void> {
 
     const allLocal = await db.checklistItems.toArray()
     for (const li of allLocal) {
-      if (li.userId === userId && !remoteIds.has(li.id)) {
+      if (li.userId === userId && !remoteIds.has(li.id) && untouched(li)) {
         await db.checklistItems.delete(li.id)
       }
     }
   }
 }
 
-/** Synchronisation globale bi-directionnelle */
-export async function syncAll(userId: string): Promise<boolean> {
+let running: Promise<boolean> | null = null
+let paused = 0
+
+/** Synchronisation globale bi-directionnelle (une seule à la fois : un nouvel appel réutilise celle en cours). */
+export function syncAll(userId: string): Promise<boolean> {
+  if (paused > 0) return Promise.resolve(false)
+  if (!running) running = runSync(userId).finally(() => (running = null))
+  return running
+}
+
+/**
+ * Exécute `fn` (ex. un import massif) sans synchronisation concurrente : attend la fin de celle
+ * en cours, et ignore les déclenchements automatiques (focus, minuterie) jusqu'à la fin.
+ */
+export async function withSyncPaused<T>(fn: () => Promise<T>): Promise<T> {
+  paused++
+  try {
+    if (running) await running.catch(() => {})
+    return await fn()
+  } finally {
+    paused--
+  }
+}
+
+async function runSync(userId: string): Promise<boolean> {
   if (!supabase) return false
   syncState = { ...syncState, status: 'syncing', error: null }
   notify()
 
   try {
+    const since = Date.now()
     // 1. Pousser les données locales
     await pushToSupabase(userId)
     // 2. Récupérer les données distantes
-    await pullFromSupabase(userId)
+    await pullFromSupabase(userId, since)
 
     syncState = {
       status: 'success',
